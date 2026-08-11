@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { getCard, searchCards } from "@/lib/tcgdex";
+import { notifyDeal } from "@/lib/deal-notifications";
 import {
   dealFingerprint,
   evaluateDeal,
@@ -145,6 +146,7 @@ export async function processDealEvent(event: RawDealEvent) {
     return { status: "DUPLICATE" as const, parsed, fingerprint, evaluation, offer: duplicate };
   }
 
+  const referencePrice = baseline?.lowest ?? baseline?.median;
   const offer = await prisma.offer.create({
     data: {
       productId: resolved.product.id,
@@ -154,14 +156,27 @@ export async function processDealEvent(event: RawDealEvent) {
       currency: "BRL",
       price: parsed.price,
       shipping: parsed.shipping,
-      referencePrice: baseline?.lowest ?? baseline?.median,
+      referencePrice,
       opportunityScore: evaluation.score,
       detectedAt: new Date(),
     },
   });
 
+  const isOpportunity = evaluation.discountPercent !== undefined && evaluation.discountPercent >= 10;
+  if (isOpportunity) {
+    await notifyDeal({
+      title: resolved.product.name,
+      source: parsed.source,
+      sourceUrl: parsed.sourceUrl,
+      price: parsed.price,
+      referencePrice,
+      discountPercent: evaluation.discountPercent,
+      score: evaluation.score,
+    }).catch(() => undefined);
+  }
+
   return {
-    status: evaluation.discountPercent !== undefined && evaluation.discountPercent >= 10 ? "OPPORTUNITY" as const : "RECORDED" as const,
+    status: isOpportunity ? "OPPORTUNITY" as const : "RECORDED" as const,
     parsed,
     fingerprint,
     evaluation,
