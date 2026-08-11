@@ -1,0 +1,11 @@
+node_modules/
+.next/
+*.tsbuildinfo
+.npm-cache/
+.env.local
+.env
+.venv/
+__pycache__/
+*.pyc
+.DS_Store
+postgres_data/
