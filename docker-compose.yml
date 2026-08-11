@@ -39,6 +39,12 @@ services:
       TCGDEX_API_URL: https://api.tcgdex.net/v2/en
       SCANNER_URL: http://scanner:8001
       DATABASE_URL: postgresql://tcg:tcg@postgres:5432/tcg
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
+      TELEGRAM_WEBHOOK_SECRET: ${TELEGRAM_WEBHOOK_SECRET:-}
+      DEAL_ALERT_TELEGRAM_CHAT_IDS: ${DEAL_ALERT_TELEGRAM_CHAT_IDS:-}
+      DEAL_ALERT_DISCORD_WEBHOOK_URL: ${DEAL_ALERT_DISCORD_WEBHOOK_URL:-}
+      DEAL_RADAR_INTERNAL_TOKEN: ${DEAL_RADAR_INTERNAL_TOKEN:-}
+      DEAL_ALERT_MIN_SCORE: ${DEAL_ALERT_MIN_SCORE:-70}
     ports:
       - "3000:3000"
     depends_on:
@@ -46,6 +52,18 @@ services:
         condition: service_healthy
       scanner:
         condition: service_healthy
+
+  deal-radar:
+    build:
+      context: ./services/deal-radar
+    environment:
+      DISCORD_BOT_TOKEN: ${DISCORD_BOT_TOKEN:-}
+      DISCORD_DEAL_CHANNEL_IDS: ${DISCORD_DEAL_CHANNEL_IDS:-}
+      DEAL_RADAR_INTERNAL_TOKEN: ${DEAL_RADAR_INTERNAL_TOKEN:-}
+      DEAL_RADAR_DISCORD_INGEST_URL: http://web:3000/api/deal-radar/discord
+    depends_on:
+      - web
+    profiles: ["deal-radar"]
 
 volumes:
   postgres_data:
