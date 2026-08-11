@@ -35,7 +35,26 @@ function Stat({ label, value, meta }: { label: string; value: string; meta?: str
     <article className="stat">
       <span>{label}</span>
       <strong>{value}</strong>
-      {meta ? <small>{meta}</small> : nul…178 tokens truncated…pal">
+      {meta ? <small>{meta}</small> : null}
+    </article>
+  );
+}
+
+function Header({ active, setActive }: { active: View; setActive: (view: View) => void }) {
+  const items: Array<[View, string]> = [
+    ["collection", "coleção"],
+    ["catalog", "catálogo"],
+    ["scanner", "scanner"],
+    ["opportunities", "oportunidades"],
+  ];
+
+  return (
+    <header className="site-header">
+      <button className="wordmark" onClick={() => setActive("home")} aria-label="Ir para início">
+        <span>TCG</span>
+        <strong>Intelligence</strong>
+      </button>
+      <nav aria-label="Navegação principal">
         {items.map(([view, label]) => (
           <button key={view} className={active === view ? "active" : ""} onClick={() => setActive(view)}>
             {label}
