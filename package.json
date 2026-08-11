@@ -1,0 +1,14 @@
+{
+  "name": "tcg-intelligence",
+  "private": true,
+  "version": "0.1.0",
+  "workspaces": [
+    "apps/web"
+  ],
+  "scripts": {
+    "dev": "npm run dev --workspace @tcg-intelligence/web",
+    "build": "npm run build --workspace @tcg-intelligence/web",
+    "start": "npm run start --workspace @tcg-intelligence/web",
+    "lint": "npm run lint --workspace @tcg-intelligence/web"
+  }
+}
