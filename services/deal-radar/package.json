@@ -1,0 +1,12 @@
+{
+  "name": "@tcg-metadex/deal-radar-worker",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "start": "node discord-bot.mjs"
+  },
+  "dependencies": {
+    "discord.js": "^14.19.3"
+  }
+}
