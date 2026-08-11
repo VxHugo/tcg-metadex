@@ -1,7 +1,0 @@
-1) Envie este ZIP inteiro para o Codex ou abra esta pasta como repositório de trabalho.
-2) Envie também esta instrução:
-
-"Leia AGENTS.md e CODEX-PROMPT.md por completo. Examine o repositório antes de editar. Comece pela PR 1 descrita no prompt (`codex/bootstrap`). Trabalhe autonomamente, implemente e teste o projeto, faça commits apenas para trabalho real concluído e abra PR para main quando a entrega estiver pronta. Use as imagens em docs/design como referência visual."
-
-3) Se o Codex estiver conectado ao GitHub, selecione o novo repositório antes de iniciar.
-4) Se o repositório estiver vazio no GitHub, faça o primeiro push deste conteúdo e então continue normalmente.
