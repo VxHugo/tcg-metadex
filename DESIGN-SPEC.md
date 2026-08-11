@@ -1,8 +1,8 @@
 # Design spec — TCG Intelligence
 
 ## Referências visuais
-- `docs/design/original-reference.png`: referência editorial fornecida pelo usuário.
-- `docs/design/generated-tcg-ui-concept.png`: conceito visual gerado para traduzir a referência para TCG.
+- As referências editoriais fornecidas pelo usuário orientaram a interface durante o desenvolvimento local.
+- Os bitmaps de referência não são distribuídos neste repositório porque incluem arte de terceiros. A direção visual abaixo preserva os elementos reutilizáveis sem redistribuir essas imagens.
 
 ## Direção
 A marca deve parecer uma mistura de **arquivo de colecionador**, **revista editorial premium** e **ferramenta de inteligência de mercado**.
