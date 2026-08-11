@@ -1,0 +1,22 @@
+{
+  "name": "tcg-intelligence",
+  "private": true,
+  "version": "0.1.0",
+  "workspaces": [
+    "apps/web"
+  ],
+  "scripts": {
+    "dev": "npm run dev --workspace @tcg-intelligence/web",
+    "build": "npm run build --workspace @tcg-intelligence/web",
+    "start": "npm run start --workspace @tcg-intelligence/web",
+    "lint": "npm run lint --workspace @tcg-intelligence/web",
+    "typecheck": "npm run typecheck --workspace @tcg-intelligence/web",
+    "test": "npm run test --workspace @tcg-intelligence/web",
+    "prisma:generate": "cross-env DATABASE_URL=postgresql://tcg:tcg@localhost:5432/tcg prisma generate --schema packages/database/schema.prisma",
+    "prisma:validate": "cross-env DATABASE_URL=postgresql://tcg:tcg@localhost:5432/tcg prisma validate --schema packages/database/schema.prisma"
+  },
+  "devDependencies": {
+    "cross-env": "^7.0.3",
+    "prisma": "^6.15.0"
+  }
+}

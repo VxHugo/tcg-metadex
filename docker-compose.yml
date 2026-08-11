@@ -1,0 +1,51 @@
+services:
+  postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_DB: tcg
+      POSTGRES_USER: tcg
+      POSTGRES_PASSWORD: tcg
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U tcg -d tcg"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+
+  scanner:
+    build:
+      context: ./services/ai
+    ports:
+      - "8001:8001"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8001/health')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  web:
+    build:
+      context: .
+      dockerfile: ./apps/web/Dockerfile
+    environment:
+      TCGDEX_API_URL: https://api.tcgdex.net/v2/en
+      SCANNER_URL: http://scanner:8001
+      DATABASE_URL: postgresql://tcg:tcg@postgres:5432/tcg
+    ports:
+      - "3000:3000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      scanner:
+        condition: service_healthy
+
+volumes:
+  postgres_data:
