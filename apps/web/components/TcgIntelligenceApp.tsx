@@ -3,7 +3,8 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from "react";
 import { cardImage } from "@/lib/tcgdex";
-import type { CardBrief, CardDetail, CollectionEntry, ScanCandidate } from "@/types/tcg";
+import { sealedCategories, type SealedCategoryId, type SealedOffersResponse } from "@/lib/sealed-products";
+import type { CardBrief, CardDetail, CollectionEntry, ScanCandidate, TcgSetBrief } from "@/types/tcg";
 
 type View = "home" | "collection" | "catalog" | "scanner" | "opportunities";
 type IconName = "grid" | "cards" | "box" | "scan" | "spark" | "bell" | "search" | "plus" | "arrow" | "sliders" | "heart" | "camera" | "chevron" | "more" | "close";
@@ -44,11 +45,11 @@ function CardArtwork({ image, name, className = "" }: { image?: string; name: st
 }
 
 const navigation: Array<{ view: View; label: string; icon: IconName }> = [
-  { view: "home", label: "Visão geral", icon: "grid" },
+  { view: "opportunities", label: "Comprar selados", icon: "spark" },
+  { view: "home", label: "Resumo", icon: "grid" },
   { view: "catalog", label: "Catálogo", icon: "cards" },
   { view: "collection", label: "Minha coleção", icon: "box" },
   { view: "scanner", label: "Scanner", icon: "scan" },
-  { view: "opportunities", label: "Oportunidades", icon: "spark" },
 ];
 
 function Brand({ compact = false }: { compact?: boolean }) {
@@ -58,13 +59,13 @@ function Brand({ compact = false }: { compact?: boolean }) {
 function Header({ setActive }: { setActive: (view: View) => void }) {
   return <header className="topbar">
     <button className="brand-button" onClick={() => setActive("home")} aria-label="Ir para visão geral"><Brand /></button>
-    <button className="global-search" onClick={() => setActive("catalog")} aria-label="Buscar cartas no catálogo"><Icon name="search" size={17} /><span>Busque cartas, sets ou número...</span><kbd>/</kbd></button>
+    <button className="global-search" onClick={() => setActive("opportunities")} aria-label="Abrir radar de produtos selados"><Icon name="search" size={17} /><span>Busque packs, boxes, coleções e promoções...</span><kbd>/</kbd></button>
     <div className="topbar-actions"><button className="icon-button" aria-label="Notificações"><Icon name="bell" size={19} /></button><button className="avatar" aria-label="Perfil do usuário">VH</button></div>
   </header>;
 }
 
 function Sidebar({ active, setActive }: { active: View; setActive: (view: View) => void }) {
-  return <aside className="sidebar"><nav aria-label="Navegação principal">{navigation.map((item) => <button key={item.view} className={active === item.view ? "is-active" : ""} onClick={() => setActive(item.view)}><Icon name={item.icon} /><span>{item.label}</span></button>)}</nav><div className="sidebar-bottom"><div className="help-card"><span className="help-icon"><Icon name="spark" size={16} /></span><strong>Comece pelo catálogo</strong><p>Encontre sua primeira carta ou escaneie uma foto.</p><button onClick={() => setActive("catalog")}>Explorar agora <Icon name="arrow" size={14} /></button></div><small>MetaDex · dados para colecionar</small></div></aside>;
+  return <aside className="sidebar"><nav aria-label="Navegação principal">{navigation.map((item) => <button key={item.view} className={active === item.view ? "is-active" : ""} onClick={() => setActive(item.view)}><Icon name={item.icon} /><span>{item.label}</span></button>)}</nav><div className="sidebar-bottom"><div className="help-card"><span className="help-icon"><Icon name="spark" size={16} /></span><strong>Comece pelos selados</strong><p>Veja packs, booster boxes, blisters e coleções.</p><button onClick={() => setActive("opportunities")}>Ver ofertas <Icon name="arrow" size={14} /></button></div><small>MetaDex · compre com dados</small></div></aside>;
 }
 
 function MobileNav({ active, setActive }: { active: View; setActive: (view: View) => void }) {
@@ -122,15 +123,15 @@ function CollectionView({ collection, collectionError, loading, removeItem, setA
   </>;
 }
 
-function CatalogView({ addCard }: { addCard: (cardId: string) => Promise<void> }) {
-  const [query, setQuery] = useState("Pikachu");
+function CatalogView({ addCard, initialQuery }: { addCard: (cardId: string) => Promise<void>; initialQuery: string }) {
+  const [query, setQuery] = useState(initialQuery);
   const [cards, setCards] = useState<CardBrief[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [selected, setSelected] = useState<string | null>(null);
   const fetchCatalog = useCallback(async (term: string) => { if (term.trim().length < 2) return; setLoading(true); setError(""); try { const response = await fetch(`/api/catalog?q=${encodeURIComponent(term.trim())}`); const payload = await response.json(); if (!response.ok) throw new Error(payload.error ?? "Erro ao consultar catálogo"); setCards(payload.cards ?? []); } catch (reason) { setError(reason instanceof Error ? reason.message : "Erro ao consultar catálogo"); } finally { setLoading(false); } }, []);
   function search(event?: FormEvent) { event?.preventDefault(); return fetchCatalog(query); }
-  useEffect(() => { void fetchCatalog("Pikachu"); }, [fetchCatalog]);
+  useEffect(() => { setQuery(initialQuery); void fetchCatalog(initialQuery); }, [fetchCatalog, initialQuery]);
   async function add(id: string) { setSelected(id); setError(""); try { await addCard(id); } catch (reason) { setError(reason instanceof Error ? reason.message : "Erro ao adicionar carta"); } finally { setSelected(null); } }
   return <>
     <section className="catalog-hero"><span className="eyebrow">CATÁLOGO TCGDEX</span><h1>Encontre a carta <em>certa.</em></h1><p>Pesquise por nome, número ou coleção e adicione ao seu acervo quando quiser.</p><form onSubmit={search} className="catalog-search"><Icon name="search" size={21} /><label className="visually-hidden" htmlFor="catalog-search">Buscar carta no catálogo</label><input id="catalog-search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Ex.: Pikachu, Charizard ou 025" /><button type="submit" disabled={loading}>{loading ? "Buscando..." : "Buscar"}</button></form><div className="search-suggestions"><span>Buscas populares</span>{["Pikachu", "Charizard", "Mewtwo", "Gardevoir"].map((term) => <button key={term} type="button" onClick={() => { setQuery(term); void fetchCatalog(term); }}>{term}</button>)}</div></section>
@@ -149,10 +150,85 @@ function ScannerView({ addCandidate }: { addCandidate: (candidate: ScanCandidate
   return <><section className="page-heading"><div><span className="eyebrow">IDENTIFICAÇÃO DE CARTAS</span><h1>Scanner <em>inteligente</em></h1><p>Envie uma foto, revise os candidatos e confirme antes de adicionar.</p></div><span className="scanner-status"><i />{status}</span></section><section className="scanner-layout"><button className={`upload-zone ${preview ? "has-preview" : ""}`} onClick={() => inputRef.current?.click()} aria-label="Escolher foto da carta">{preview ? <img src={preview} alt="Prévia da carta enviada" /> : <div><span className="upload-icon"><Icon name="camera" size={28} /></span><h2>Envie uma foto da carta</h2><p>Arraste uma imagem ou toque para escolher.</p><small>JPG, PNG ou WEBP · máximo 10 MB</small></div>}</button><input ref={inputRef} type="file" accept="image/*" hidden onChange={(event) => pick(event.target.files?.[0])} /><div className="scanner-side"><article className="scan-guide"><span className="eyebrow">ANTES DE ESCANEAR</span><h2>Uma foto nítida faz diferença.</h2><ul><li><b>01</b> Posicione a carta sobre uma superfície lisa.</li><li><b>02</b> Evite reflexos e sombras fortes.</li><li><b>03</b> Mantenha nome e número visíveis.</li></ul></article><button className="primary-button scan-button" onClick={() => void scan()} disabled={loading}><Icon name="scan" />{loading ? "Identificando..." : file ? "Identificar carta" : "Escolher imagem"}</button>{candidates.length ? <div className="candidate-list"><div className="section-head"><div><span className="eyebrow">RESULTADOS</span><h2>Confirme a correspondência</h2></div></div>{candidates.map((candidate, index) => <article className="candidate-card" key={candidate.id}><CardArtwork image={candidate.image} name={candidate.name} /><div><span>{index === 0 ? "MELHOR CORRESPONDÊNCIA" : "ALTERNATIVA"}</span><h3>{candidate.name}</h3><p>{candidate.setName} · #{candidate.number}</p><strong>{Math.round(candidate.confidence * 100)}% de confiança</strong></div><button onClick={() => void confirm(candidate)} disabled={confirming === candidate.id}>{confirming === candidate.id ? "Salvando..." : "Confirmar"}</button></article>)}</div> : null}</div></section></>;
 }
 
-function OpportunitiesView() { return <><section className="page-heading"><div><span className="eyebrow">MERCADO E PREÇOS</span><h1>Oportunidades <em>reais</em></h1><p>Ofertas só entram aqui quando houver dados verificáveis de uma fonte conectada.</p></div></section><section className="opportunity-empty"><div className="opportunity-orbit"><Icon name="spark" size={32} /></div><span className="eyebrow">AINDA NÃO HÁ OFERTAS</span><h2>Sem atalhos, sem preço inventado.</h2><p>O MetaDex mostrará preço, fonte, data de observação e os fatores do score quando a integração de mercado estiver disponível.</p><div className="opportunity-principles"><span><Icon name="search" size={18} />Fonte identificada</span><span><Icon name="cards" size={18} />Carta e variante claras</span><span><Icon name="spark" size={18} />Score explicável</span></div></section></>; }
+function SetArtwork({ set }: { set: TcgSetBrief }) {
+  const src = set.logo ? cardImage(set.logo, "low") : undefined;
+  return src ? <img src={src} alt={`Logo de ${set.name}`} loading="lazy" /> : <span>{initials(set.name)}</span>;
+}
 
-export function TcgIntelligenceApp() {
-  const [active, setActive] = useState<View>("home");
+function SealedOffersView({ initialSets, onExploreSet }: { initialSets: TcgSetBrief[]; onExploreSet: (setName: string) => void }) {
+  const [selectedCategory, setSelectedCategory] = useState<SealedCategoryId>("booster-box");
+  const [radar, setRadar] = useState<SealedOffersResponse>({ status: "source_not_configured", offers: [], categories: sealedCategories, message: "O radar automático precisa de uma fonte autorizada. Enquanto isso, abra a busca atualizada da categoria diretamente na loja.", observedAt: null });
+  const [loadingOffers, setLoadingOffers] = useState(false);
+  const [sets, setSets] = useState<TcgSetBrief[]>(initialSets);
+  const [setsQuery, setSetsQuery] = useState("Mega");
+  const [setsError, setSetsError] = useState("");
+
+  const loadOffers = useCallback(async (category: SealedCategoryId) => {
+    setLoadingOffers(true);
+    try {
+      const response = await fetch(`/api/sealed/offers?category=${encodeURIComponent(category)}`);
+      const payload = await response.json() as SealedOffersResponse & { error?: string };
+      if (!response.ok && !payload.status) throw new Error(payload.error ?? "Não foi possível consultar o radar.");
+      setRadar(payload);
+    } catch (reason) {
+      setRadar({ status: "source_unavailable", offers: [], categories: sealedCategories, message: reason instanceof Error ? reason.message : "Não foi possível consultar o radar.", observedAt: null });
+    } finally {
+      setLoadingOffers(false);
+    }
+  }, []);
+
+  const loadSets = useCallback(async (term: string) => {
+    setSetsError("");
+    try {
+      const response = await fetch(`/api/sets?q=${encodeURIComponent(term)}`);
+      const payload = await response.json() as { sets?: TcgSetBrief[]; error?: string };
+      if (!response.ok) throw new Error(payload.error ?? "Não foi possível consultar as coleções.");
+      setSets(payload.sets ?? []);
+    } catch (reason) {
+      setSetsError(reason instanceof Error ? reason.message : "Não foi possível consultar as coleções.");
+    }
+  }, []);
+
+  useEffect(() => { void loadOffers(selectedCategory); }, [loadOffers, selectedCategory]);
+  useEffect(() => { if (!initialSets.length) void loadSets("Mega"); }, [initialSets.length, loadSets]);
+
+  const categories = radar.categories;
+  const activeCategory = categories.find((category) => category.id === selectedCategory) ?? null;
+  const offers = radar.offers;
+  const observed = radar.observedAt ? new Intl.DateTimeFormat("pt-BR", { dateStyle: "short", timeStyle: "short" }).format(new Date(radar.observedAt)) : null;
+
+  function chooseCategory(category: SealedCategoryId) {
+    setSelectedCategory(category);
+  }
+
+  function searchSets(event: FormEvent) {
+    event.preventDefault();
+    void loadSets(setsQuery);
+  }
+
+  return <>
+    <section className="sealed-hero">
+      <div><span className="eyebrow">RADAR DE COMPRAS · POKÉMON TCG</span><h1>Encontre packs, boxes e <em>coleções.</em></h1><p>O MetaDex começa por produtos selados: promoções, preço anterior, loja e link para comprar — sempre com a origem visível.</p></div>
+      <div className="sealed-trust"><span><Icon name="search" size={17} />Fonte e link</span><span><Icon name="spark" size={17} />Desconto rastreável</span><span><Icon name="box" size={17} />Produto lacrado</span></div>
+    </section>
+
+    <section className="sealed-category-grid" aria-label="Categorias de produtos selados">
+      {categories.map((category) => <article className={selectedCategory === category.id ? "sealed-category is-selected" : "sealed-category"} key={category.id}><button onClick={() => chooseCategory(category.id)}><span className="sealed-category-icon"><Icon name={category.id === "pack" || category.id === "blister" ? "cards" : "box"} size={21} /></span><strong>{category.label}</strong><p>{category.description}</p></button><a href={category.sourceUrl} target="_blank" rel="noreferrer">Abrir busca <Icon name="arrow" size={14} /></a></article>)}
+    </section>
+
+    <section className="sealed-radar-section">
+      <div className="section-head"><div><span className="eyebrow">OFERTAS DE PRODUTOS SELADOS</span><h2>{activeCategory?.label ?? "Radar de ofertas"}</h2></div><span className={radar.status === "ok" ? "source-state is-live" : "source-state"}><i />{radar.status === "ok" ? "Fonte conectada" : "Fonte aguardando"}</span></div>
+      {loadingOffers ? <div className="sealed-empty"><span className="opportunity-orbit"><Icon name="search" size={27} /></span><h3>Consultando a fonte…</h3></div> : offers.length ? <div className="sealed-offer-grid">{offers.map((offer) => <article className="sealed-offer" key={offer.id}>{offer.thumbnail ? <img src={offer.thumbnail} alt="" loading="lazy" /> : <div className="sealed-offer-art"><Icon name="box" size={30} /></div>}<div className="sealed-offer-copy"><span>{offer.source}{offer.seller ? ` · ${offer.seller}` : ""}</span><h3>{offer.title}</h3>{offer.originalPrice ? <p><s>{money(offer.originalPrice)}</s> <b>{offer.discountPercent}% OFF</b></p> : <p>Preço verificado, sem desconto anterior informado.</p>}<strong>{money(offer.price)}</strong>{offer.freeShipping ? <small>Frete grátis informado pela fonte</small> : null}</div><a className="buy-button" href={offer.sourceUrl} target="_blank" rel="noreferrer">Ver oferta <Icon name="arrow" size={15} /></a></article>)}</div> : <div className="sealed-empty"><span className="opportunity-orbit"><Icon name="spark" size={27} /></span><span className="eyebrow">RADAR AUTOMÁTICO</span><h3>{radar.status === "source_not_configured" ? "Conecte uma fonte para listar promoções aqui." : "Não há ofertas verificadas para mostrar agora."}</h3><p>{radar.message}</p>{activeCategory ? <a className="primary-button" href={activeCategory.sourceUrl} target="_blank" rel="noreferrer">Ver ofertas de {activeCategory.label}<Icon name="arrow" size={16} /></a> : null}</div>}
+      <p className="radar-disclaimer">{observed ? `Última consulta: ${observed}. ` : ""}Confirme idioma, lacre, conteúdo e condições de venda na página da loja antes de comprar.</p>
+    </section>
+
+    <section className="sets-section"><div className="section-head"><div><span className="eyebrow">COLEÇÕES POKÉMON TCG</span><h2>Explore a coleção por expansão</h2><p>Dados do catálogo TCGdex. Busque o nome da coleção para ver seus cards depois.</p></div></div><form className="sets-search" onSubmit={searchSets}><Icon name="search" size={17} /><label className="visually-hidden" htmlFor="sets-search">Buscar coleção</label><input id="sets-search" value={setsQuery} onChange={(event) => setSetsQuery(event.target.value)} placeholder="Ex.: Mega, Journey, Destined…" /><button type="submit">Buscar</button></form>{setsError ? <div className="notice notice-warning">{setsError}</div> : null}<div className="sets-grid">{sets.map((set) => <button className="set-tile" key={set.id} onClick={() => onExploreSet(set.name)}><span className="set-logo"><SetArtwork set={set} /></span><span><b>{set.name}</b><small>{set.cardCount?.official ?? set.cardCount?.total ?? "—"} cards</small></span><Icon name="arrow" size={15} /></button>)}</div>{!setsError && !sets.length ? <div className="sets-empty">Nenhuma coleção encontrada. Tente outro nome.</div> : null}</section>
+  </>;
+}
+
+export function TcgIntelligenceApp({ initialSets = [] }: { initialSets?: TcgSetBrief[] }) {
+  const [active, setActive] = useState<View>("opportunities");
+  const [catalogQuery, setCatalogQuery] = useState("Pikachu");
   const [collection, setCollection] = useState<CollectionEntry[]>([]);
   const [collectionError, setCollectionError] = useState("");
   const [collectionLoading, setCollectionLoading] = useState(true);
@@ -195,6 +271,7 @@ export function TcgIntelligenceApp() {
   async function removeItem(id: string) {
     setCollection((current) => current.filter((item) => item.id !== id));
   }
-  return <main className="app-shell"><Header setActive={setActive} /><div className="app-frame"><Sidebar active={active} setActive={setActive} /><div className="page-content">{active === "home" ? <HomeView collection={collection} collectionError={collectionError} setActive={setActive} /> : null}{active === "collection" ? <CollectionView collection={collection} collectionError={collectionError} loading={collectionLoading} removeItem={removeItem} setActive={setActive} /> : null}{active === "catalog" ? <CatalogView addCard={addCard} /> : null}{active === "scanner" ? <ScannerView addCandidate={(candidate) => addCard(candidate.id)} /> : null}{active === "opportunities" ? <OpportunitiesView /> : null}</div></div><MobileNav active={active} setActive={setActive} /></main>;
+  function exploreSet(setName: string) { setCatalogQuery(setName); setActive("catalog"); }
+  return <main className="app-shell"><Header setActive={setActive} /><div className="app-frame"><Sidebar active={active} setActive={setActive} /><div className="page-content">{active === "home" ? <HomeView collection={collection} collectionError={collectionError} setActive={setActive} /> : null}{active === "collection" ? <CollectionView collection={collection} collectionError={collectionError} loading={collectionLoading} removeItem={removeItem} setActive={setActive} /> : null}{active === "catalog" ? <CatalogView addCard={addCard} initialQuery={catalogQuery} /> : null}{active === "scanner" ? <ScannerView addCandidate={(candidate) => addCard(candidate.id)} /> : null}{active === "opportunities" ? <SealedOffersView initialSets={initialSets} onExploreSet={exploreSet} /> : null}</div></div><MobileNav active={active} setActive={setActive} /></main>;
 }
 

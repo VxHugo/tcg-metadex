@@ -12,6 +12,7 @@ Plataforma de inteligência financeira e gestão de portfólio para Pokémon TCG
 - API de leitura: `GET /api/market/:productId` com o mesmo perfil da observação.
 - Migration Prisma e CI para validar banco, lint, tipos, testes e build.
 - Interface sem cartas, preços ou oportunidades de demonstração.
+- Radar de Selados com categorias para packs, booster boxes/displays, blisters, ETBs, boxes de coleção, premium collections, tins e decks. Ele só lista ofertas automáticas após configurar uma fonte autorizada; sem isso, abre a busca ao vivo na fonte, sem números inventados.
 
 O scanner só responde quando um serviço OCR real estiver configurado. Sem ele, informa a indisponibilidade; não inventa uma correspondência.
 
@@ -61,8 +62,8 @@ npm run build
 
 ## Próximos blocos de produto
 
-1. Conectores autorizados para fontes brasileiras e comparador Liga Pokémon.
-2. Deal Radar com deduplicação, Telegram/Discord e alertas.
+1. Conector OAuth autorizado do Mercado Livre e fontes brasileiras que permitam integração.
+2. Deal Radar de selados com deduplicação, Telegram/Discord e alertas.
 3. Persistência de coleção, timeline de portfólio, P/L e ROI por usuário.
 
 ## Aviso

@@ -1,4 +1,4 @@
-import type { CardBrief, CardDetail } from "@/types/tcg";
+import type { CardBrief, CardDetail, TcgSetBrief } from "@/types/tcg";
 
 const BASE_URL = process.env.TCGDEX_API_URL ?? "https://api.tcgdex.net/v2/en";
 
@@ -36,4 +36,12 @@ export async function getCard(id: string): Promise<CardDetail> {
   }
 
   return (await response.json()) as CardDetail;
+}
+
+export async function searchSets(query: string, limit = 24): Promise<TcgSetBrief[]> {
+  const params = new URLSearchParams({ "pagination:page": "1", "pagination:itemsPerPage": String(limit) });
+  if (query.trim()) params.set("name", query.trim());
+  const response = await fetch(`${BASE_URL}/sets?${params}`, { next: { revalidate: 3600 } });
+  if (!response.ok) throw new Error(`TCGdex set search failed (${response.status})`);
+  return (await response.json()) as TcgSetBrief[];
 }

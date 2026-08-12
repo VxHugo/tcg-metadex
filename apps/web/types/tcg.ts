@@ -41,6 +41,14 @@ export type CardDetail = CardBrief & {
   updated?: string;
 };
 
+export type TcgSetBrief = {
+  id: string;
+  name: string;
+  logo?: string;
+  symbol?: string;
+  cardCount?: { official?: number; total?: number };
+};
+
 export type CollectionEntry = {
   id: string;
   cardId: string;
