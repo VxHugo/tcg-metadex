@@ -2,8 +2,8 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "TCG Intelligence",
-  description: "Coleção, scanner, preços e oportunidades para Pokémon TCG.",
+  title: "TCG MetaDex — Inteligência para Pokémon TCG",
+  description: "Coleção, preços verificáveis e oportunidades para Pokémon TCG.",
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
