@@ -1,7 +1,7 @@
 "use client";
 /* eslint-disable @next/next/no-img-element -- TCGdex image URLs are dynamic external assets. */
 
-import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type FormEvent, type ReactNode } from "react";
 import { cardImage } from "@/lib/tcgdex";
 import { sealedCategories, type SealedCategoryId, type SealedOffersResponse } from "@/lib/sealed-products";
 import type { CardBrief, CardDetail, CollectionEntry, ScanCandidate, TcgSetBrief } from "@/types/tcg";
@@ -206,14 +206,18 @@ function SealedOffersView({ initialSets, onExploreSet }: { initialSets: TcgSetBr
     void loadSets(setsQuery);
   }
 
+  function scrollToCollections() {
+    document.getElementById("sets-directory")?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+
   return <>
     <section className="sealed-hero">
-      <div><span className="eyebrow">RADAR DE COMPRAS · POKÉMON TCG</span><h1>Encontre packs, boxes e <em>coleções.</em></h1><p>O MetaDex começa por produtos selados: promoções, preço anterior, loja e link para comprar — sempre com a origem visível.</p></div>
-      <div className="sealed-trust"><span><Icon name="search" size={17} />Fonte e link</span><span><Icon name="spark" size={17} />Desconto rastreável</span><span><Icon name="box" size={17} />Produto lacrado</span></div>
+      <div className="sealed-hero-copy"><span className="sealed-kicker"><i />RADAR DE SELADOS · POKÉMON TCG</span><h1>Compre selados com <em>mais clareza.</em></h1><p>Encontre o formato que você quer abrir ou guardar. Toda oferta mostra a fonte e leva você para a página original da loja.</p><div className="sealed-hero-actions">{activeCategory ? <a className="hero-primary" href={activeCategory.sourceUrl} target="_blank" rel="noreferrer">Ver {activeCategory.label}<Icon name="arrow" size={17} /></a> : null}<button className="hero-secondary" type="button" onClick={scrollToCollections}>Explorar coleções <Icon name="arrow" size={17} /></button></div><div className="sealed-trust"><span><Icon name="search" size={16} />Fonte e link</span><span><Icon name="spark" size={16} />Desconto rastreável</span><span><Icon name="box" size={16} />Produto lacrado</span></div></div>
+      <div className="sealed-visual" aria-hidden="true"><span className="sealed-orbit orbit-one" /><span className="sealed-orbit orbit-two" /><span className="sealed-orbit orbit-three" /><span className="sealed-sweep" /><div className="sealed-pack-visual"><small>TCG METADEX</small><b>OPEN<br />SMART</b><span>7 FORMATOS</span></div><div className="sealed-visual-label"><i />MONITORANDO FORMATO</div></div>
     </section>
 
     <section className="sealed-category-grid" aria-label="Categorias de produtos selados">
-      {categories.map((category) => <article className={selectedCategory === category.id ? "sealed-category is-selected" : "sealed-category"} key={category.id}><button onClick={() => chooseCategory(category.id)}><span className="sealed-category-icon"><Icon name={category.id === "pack" || category.id === "blister" ? "cards" : "box"} size={21} /></span><strong>{category.label}</strong><p>{category.description}</p></button><a href={category.sourceUrl} target="_blank" rel="noreferrer">Abrir busca <Icon name="arrow" size={14} /></a></article>)}
+      {categories.map((category, index) => <article className={selectedCategory === category.id ? "sealed-category is-selected" : "sealed-category"} key={category.id} style={{ "--category-index": index } as CSSProperties}><button type="button" aria-pressed={selectedCategory === category.id} onClick={() => chooseCategory(category.id)}><span className="sealed-category-icon"><Icon name={category.id === "pack" || category.id === "blister" ? "cards" : "box"} size={21} /></span><strong>{category.label}</strong><p>{category.description}</p></button><a href={category.sourceUrl} target="_blank" rel="noreferrer">Abrir busca <Icon name="arrow" size={14} /></a></article>)}
     </section>
 
     <section className="sealed-radar-section">
@@ -222,7 +226,7 @@ function SealedOffersView({ initialSets, onExploreSet }: { initialSets: TcgSetBr
       <p className="radar-disclaimer">{observed ? `Última consulta: ${observed}. ` : ""}Confirme idioma, lacre, conteúdo e condições de venda na página da loja antes de comprar.</p>
     </section>
 
-    <section className="sets-section"><div className="section-head"><div><span className="eyebrow">COLEÇÕES POKÉMON TCG</span><h2>Explore a coleção por expansão</h2><p>Dados do catálogo TCGdex. Busque o nome da coleção para ver seus cards depois.</p></div></div><form className="sets-search" onSubmit={searchSets}><Icon name="search" size={17} /><label className="visually-hidden" htmlFor="sets-search">Buscar coleção</label><input id="sets-search" value={setsQuery} onChange={(event) => setSetsQuery(event.target.value)} placeholder="Ex.: Mega, Journey, Destined…" /><button type="submit">Buscar</button></form>{setsError ? <div className="notice notice-warning">{setsError}</div> : null}<div className="sets-grid">{sets.map((set) => <button className="set-tile" key={set.id} onClick={() => onExploreSet(set.name)}><span className="set-logo"><SetArtwork set={set} /></span><span><b>{set.name}</b><small>{set.cardCount?.official ?? set.cardCount?.total ?? "—"} cards</small></span><Icon name="arrow" size={15} /></button>)}</div>{!setsError && !sets.length ? <div className="sets-empty">Nenhuma coleção encontrada. Tente outro nome.</div> : null}</section>
+    <section className="sets-section" id="sets-directory"><div className="section-head"><div><span className="eyebrow">COLEÇÕES POKÉMON TCG</span><h2>Explore a coleção por expansão</h2><p>Dados do catálogo TCGdex. Busque o nome da coleção para ver seus cards depois.</p></div><span className="sets-count">{sets.length} coleções</span></div><form className="sets-search" onSubmit={searchSets}><Icon name="search" size={17} /><label className="visually-hidden" htmlFor="sets-search">Buscar coleção</label><input id="sets-search" value={setsQuery} onChange={(event) => setSetsQuery(event.target.value)} placeholder="Ex.: Mega, Journey, Destined…" /><button type="submit">Buscar</button></form>{setsError ? <div className="notice notice-warning">{setsError}</div> : null}<div className="sets-grid">{sets.map((set) => <button className="set-tile" key={set.id} onClick={() => onExploreSet(set.name)}><span className="set-logo"><SetArtwork set={set} /></span><span><b>{set.name}</b><small>{set.cardCount?.official ?? set.cardCount?.total ?? "—"} cards</small></span><Icon name="arrow" size={15} /></button>)}</div>{!setsError && !sets.length ? <div className="sets-empty">Nenhuma coleção encontrada. Tente outro nome.</div> : null}</section>
   </>;
 }
 
