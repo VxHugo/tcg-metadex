@@ -1,7 +1,7 @@
 "use client";
+/* eslint-disable @next/next/no-img-element -- images use dynamic TCGdex URLs and client previews */
 
 import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
-import { DEMO_COLLECTION, DEMO_OPPORTUNITIES } from "@/lib/demo-data";
 import { cardImage } from "@/lib/tcgdex";
 import { discountPercent } from "@/lib/opportunity";
 import type { CardBrief, CardDetail, CollectionEntry, Opportunity, ScanCandidate } from "@/types/tcg";
@@ -25,7 +25,7 @@ function initials(name: string) {
 
 function EditorialMark() {
   return (
-    <div className="editorial-mark" aria-label="TCG Intelligence">
+    <div className="editorial-mark" aria-label="TCG MetaDex">
       <span className="mark-small">collect what</span>
       <strong>you love</strong>
       <span className="mark-small mark-right">know what it&apos;s worth</span>
@@ -58,14 +58,14 @@ function Header({ active, setActive }: { active: View; setActive: (view: View) =
     ["collection", "coleção"],
     ["catalog", "catálogo"],
     ["scanner", "scanner"],
-    ["opportunities", "oportunidades"],
+    ["opportunities", "mercado"],
   ];
 
   return (
     <header className="site-header">
       <button className="wordmark" onClick={() => setActive("home")} aria-label="Ir para início">
         <span>TCG</span>
-        <strong>Intelligence</strong>
+        <strong>MetaDex</strong>
       </button>
       <nav>
         {items.map(([view, label]) => (
@@ -80,7 +80,7 @@ function Header({ active, setActive }: { active: View; setActive: (view: View) =
 }
 
 function Hero({ collection, onScan }: { collection: CollectionEntry[]; onScan: () => void }) {
-  const top = [...collection].sort((a, b) => b.market - a.market).slice(0, 3);
+  const top = [...collection].sort((a, b) => (b.market ?? -1) - (a.market ?? -1)).slice(0, 3);
 
   return (
     <section className="cream-panel hero-panel">
@@ -105,10 +105,12 @@ function Hero({ collection, onScan }: { collection: CollectionEntry[]; onScan: (
 
 function HomeView({ collection, setActive }: { collection: CollectionEntry[]; setActive: (view: View) => void }) {
   const totals = useMemo(() => {
-    const market = collection.reduce((sum, item) => sum + item.market * item.quantity, 0);
-    const paid = collection.reduce((sum, item) => sum + item.paid * item.quantity, 0);
+    const valued = collection.filter((item) => item.market !== null);
+    const costed = collection.filter((item) => item.paid !== null);
+    const market = valued.reduce((sum, item) => sum + (item.market ?? 0) * item.quantity, 0);
+    const paid = costed.reduce((sum, item) => sum + (item.paid ?? 0) * item.quantity, 0);
     const cards = collection.reduce((sum, item) => sum + item.quantity, 0);
-    return { market, paid, cards, delta: market - paid };
+    return { market, paid, cards, valuedCards: valued.reduce((sum, item) => sum + item.quantity, 0), costedCards: costed.reduce((sum, item) => sum + item.quantity, 0), delta: market - paid };
   }, [collection]);
 
   return (
@@ -116,11 +118,11 @@ function HomeView({ collection, setActive }: { collection: CollectionEntry[]; se
       <Hero collection={collection} onScan={() => setActive("scanner")} />
 
       <section className="cream-panel dashboard-panel">
-        <div className="panel-kicker-row"><span>collection intelligence</span><span>live portfolio</span><span>updated now</span></div>
+        <div className="panel-kicker-row"><span>market intelligence</span><span>portfolio auditável</span><span>sem números de demonstração</span></div>
         <div className="stats-grid">
-          <Stat label="valor estimado" value={money(totals.market)} meta={`${totals.cards} cartas registradas`} />
-          <Stat label="resultado" value={money(totals.delta)} meta={totals.delta >= 0 ? "acima do custo registrado" : "abaixo do custo registrado"} />
-          <Stat label="melhor oportunidade" value={`${DEMO_OPPORTUNITIES[0].score}/100`} meta={`${discountPercent(DEMO_OPPORTUNITIES[0].price, DEMO_OPPORTUNITIES[0].market).toFixed(1)}% abaixo da referência`} />
+          <Stat label="valor de mercado" value={totals.valuedCards > 0 ? money(totals.market) : "sem dados"} meta={totals.valuedCards > 0 ? `${totals.valuedCards} cartas com observações` : "aguardando snapshots reais"} />
+          <Stat label="resultado" value={totals.valuedCards > 0 && totals.costedCards > 0 ? money(totals.delta) : "sem dados"} meta={totals.valuedCards > 0 && totals.costedCards > 0 ? (totals.delta >= 0 ? "acima do custo registrado" : "abaixo do custo registrado") : "registre custo e mercado"} />
+          <Stat label="radar de deals" value="sem dados" meta="nenhuma oferta real ingerida" />
         </div>
         <div className="dashboard-center">
           <div className="script-title">Your cards tell a story.<br /><em>We read the market.</em></div>
@@ -130,19 +132,8 @@ function HomeView({ collection, setActive }: { collection: CollectionEntry[]; se
       </section>
 
       <section className="cream-panel opportunities-editorial">
-        <div className="section-title"><span>Today&apos;s</span> market notes</div>
-        <div className="editorial-opportunity-grid">
-          {DEMO_OPPORTUNITIES.slice(0, 3).map((item) => (
-            <article key={item.id} className="editorial-opportunity">
-              <div className="record-disc" aria-hidden="true" />
-              <CardArtwork image={item.image} name={item.title} />
-              <ScoreBadge score={item.score} />
-              <h3>{item.title}</h3>
-              <p>{money(item.price)} agora · referência {money(item.market)}</p>
-              <strong>{discountPercent(item.price, item.market).toFixed(1)}% abaixo</strong>
-            </article>
-          ))}
-        </div>
+        <div className="section-title"><span>Market</span> radar</div>
+        <div className="empty-state">Sem ofertas reais ainda. O radar só mostra uma oportunidade depois de registrar snapshots verificáveis com fonte e data/hora.</div>
       </section>
     </>
   );
@@ -160,7 +151,7 @@ function CollectionView({ collection, removeItem }: { collection: CollectionEntr
       </div>
       <div className="collection-grid">
         {filtered.map((item) => {
-          const gain = (item.market - item.paid) * item.quantity;
+          const gain = item.market === null || item.paid === null ? null : (item.market - item.paid) * item.quantity;
           return (
             <article className="collection-card" key={item.id}>
               <CardArtwork image={item.image} name={item.name} />
@@ -168,7 +159,11 @@ function CollectionView({ collection, removeItem }: { collection: CollectionEntr
                 <span>{item.setName} · #{item.number}</span>
                 <h3>{item.name}</h3>
                 <p>{item.rarity ?? "Carta"} · {item.condition} · x{item.quantity}</p>
-                <div className="price-pair"><strong>{money(item.market * item.quantity)}</strong><small>{gain >= 0 ? "+" : ""}{money(gain)}</small></div>
+                {item.market !== null ? (
+                  <div className="price-pair"><strong>{money(item.market * item.quantity)}</strong><small>{gain === null ? "sem custo registrado" : <>{gain >= 0 ? "+" : ""}{money(gain)}</>}</small></div>
+                ) : (
+                  <div className="price-pair"><strong>Sem preço de mercado</strong><small>aguardando observações reais</small></div>
+                )}
                 <button className="text-action" onClick={() => removeItem(item.id)}>remover</button>
               </div>
             </article>
@@ -180,7 +175,7 @@ function CollectionView({ collection, removeItem }: { collection: CollectionEntr
   );
 }
 
-function CatalogView({ addCard }: { addCard: (card: CardDetail, referencePrice: number) => void }) {
+function CatalogView({ addCard }: { addCard: (card: CardDetail) => void }) {
   const [query, setQuery] = useState("Pikachu");
   const [cards, setCards] = useState<CardBrief[]>([]);
   const [loading, setLoading] = useState(false);
@@ -204,7 +199,23 @@ function CatalogView({ addCard }: { addCard: (card: CardDetail, referencePrice: 
     }
   }
 
-  useEffect(() => { void search(); /* initial demo search */ }, []);
+  useEffect(() => {
+    async function loadInitialCatalog() {
+      setLoading(true);
+      setError("");
+      try {
+        const response = await fetch("/api/catalog?q=Pikachu");
+        const payload = await response.json();
+        if (!response.ok) throw new Error(payload.error ?? "Erro ao consultar catálogo");
+        setCards(payload.cards ?? []);
+      } catch (e) {
+        setError(e instanceof Error ? e.message : "Erro ao consultar catálogo");
+      } finally {
+        setLoading(false);
+      }
+    }
+    void loadInitialCatalog();
+  }, []);
 
   async function add(id: string) {
     setSelected(id);
@@ -212,7 +223,7 @@ function CatalogView({ addCard }: { addCard: (card: CardDetail, referencePrice: 
       const response = await fetch(`/api/card/${encodeURIComponent(id)}`);
       const payload = await response.json();
       if (!response.ok) throw new Error(payload.error ?? "Erro ao abrir carta");
-      addCard(payload.card, Number(payload.referencePrice ?? 0));
+      addCard(payload.card);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Erro ao adicionar carta");
     } finally {
@@ -268,9 +279,9 @@ function ScannerView({ addCandidate }: { addCandidate: (candidate: ScanCandidate
     try {
       const response = await fetch("/api/scan", { method: "POST", body: data });
       const payload = await response.json();
-      if (!response.ok) throw new Error(payload.error ?? "Falha no scanner");
+      if (!response.ok) throw new Error(payload.message ?? payload.error ?? "Falha no scanner");
       setCandidates(payload.candidates ?? []);
-      setStatus(payload.engine === "demo-fallback" ? "Modo demonstração: ligue o serviço Python para OCR real." : `Scanner: ${payload.engine ?? "OCR"}`);
+      setStatus(`Scanner: ${payload.engine ?? "OCR"}`);
     } catch (e) {
       setStatus(e instanceof Error ? e.message : "Falha no scanner");
     } finally {
@@ -323,6 +334,7 @@ function OpportunitiesView({ opportunities }: { opportunities: Opportunity[] }) 
             <ScoreBadge score={item.score} />
           </article>
         ))}
+        {!filtered.length ? <div className="empty-state">Ainda não há ofertas verificáveis. Registre observações de mercado para o radar calcular oportunidades.</div> : null}
       </div>
     </section>
   );
@@ -330,20 +342,20 @@ function OpportunitiesView({ opportunities }: { opportunities: Opportunity[] }) 
 
 export function TcgIntelligenceApp() {
   const [active, setActive] = useState<View>("home");
-  const [collection, setCollection] = useState<CollectionEntry[]>(DEMO_COLLECTION);
+  const [collection, setCollection] = useState<CollectionEntry[]>([]);
 
   useEffect(() => {
-    const saved = localStorage.getItem("tcg-intelligence-collection");
+    const saved = localStorage.getItem("tcg-metadex-collection-v2");
     if (saved) {
-      try { setCollection(JSON.parse(saved)); } catch { /* keep demo */ }
+      try { setCollection(JSON.parse(saved)); } catch { /* dados locais inválidos são ignorados */ }
     }
   }, []);
 
   useEffect(() => {
-    localStorage.setItem("tcg-intelligence-collection", JSON.stringify(collection));
+    localStorage.setItem("tcg-metadex-collection-v2", JSON.stringify(collection));
   }, [collection]);
 
-  function addCard(card: CardDetail, referencePrice: number) {
+  function addCard(card: CardDetail) {
     setCollection((current) => {
       const existing = current.find((item) => item.cardId === card.id);
       if (existing) return current.map((item) => item.id === existing.id ? { ...item, quantity: item.quantity + 1 } : item);
@@ -356,8 +368,8 @@ export function TcgIntelligenceApp() {
         number: String(card.localId),
         rarity: card.rarity,
         quantity: 1,
-        paid: referencePrice,
-        market: referencePrice,
+        paid: null,
+        market: null,
         condition: "NM",
         addedAt: new Date().toISOString(),
       }, ...current];
@@ -374,8 +386,8 @@ export function TcgIntelligenceApp() {
       setName: candidate.setName,
       number: candidate.number,
       quantity: 1,
-      paid: candidate.market ?? 0,
-      market: candidate.market ?? 0,
+      paid: null,
+      market: null,
       condition: "NM",
       addedAt: new Date().toISOString(),
     }, ...current]);
@@ -394,9 +406,9 @@ export function TcgIntelligenceApp() {
         {active === "collection" ? <CollectionView collection={collection} removeItem={removeItem} /> : null}
         {active === "catalog" ? <CatalogView addCard={addCard} /> : null}
         {active === "scanner" ? <ScannerView addCandidate={addCandidate} /> : null}
-        {active === "opportunities" ? <OpportunitiesView opportunities={DEMO_OPPORTUNITIES} /> : null}
+        {active === "opportunities" ? <OpportunitiesView opportunities={[]} /> : null}
       </div>
-      <footer className="site-footer"><span>TCG Intelligence</span><span>fan-made data product · not affiliated with The Pokémon Company</span><span>2026</span></footer>
+      <footer className="site-footer"><span>TCG MetaDex</span><span>fan-made data product · not affiliated with The Pokémon Company</span><span>2026</span></footer>
     </main>
   );
 }

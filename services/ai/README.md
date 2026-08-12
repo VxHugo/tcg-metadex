@@ -23,4 +23,4 @@ uvicorn app.main:app --reload --port 8001
 
 É necessário ter `tesseract` instalado no sistema. Com Docker isso já é feito pelo `Dockerfile`.
 
-O frontend usa `SCANNER_URL=http://localhost:8001`. Se a variável não estiver configurada, a interface entra em modo demonstração para continuar navegável.
+O frontend usa `SCANNER_URL=http://localhost:8001`. Se a variável não estiver configurada, a interface informa que o scanner real não está disponível; ela não cria candidatos fictícios.

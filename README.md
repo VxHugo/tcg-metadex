@@ -1,85 +1,69 @@
-# TCG Intelligence — MVP
+# TCG MetaDex
 
-Plataforma para Pokémon TCG que junta **coleção, catálogo, scanner, preços e oportunidades** em uma experiência única.
+Plataforma de inteligência financeira e gestão de portfólio para Pokémon TCG no Brasil. O núcleo do produto é preço de mercado verificável, histórico, oportunidades e valorização — não um catálogo com números inventados.
 
-O projeto deixou de ser apenas documentação: agora contém um frontend funcional em Next.js e um serviço de scanner em FastAPI/OpenCV/Tesseract.
+## Estado atual
 
-## O que já existe neste MVP
+- Catálogo de cartas pelo TCGdex.
+- Market Engine testado: mediana, média, menor preço, confiança, tendência, Deal Score e ROI.
+- Snapshots auditáveis com fonte, URL, data/hora, condição, idioma, variante e grade.
+- A comparação nunca mistura perfis incompatíveis de uma carta.
+- API de ingestão: `POST /api/market/observations`.
+- API de leitura: `GET /api/market/:productId` com o mesmo perfil da observação.
+- Migration Prisma e CI para validar banco, lint, tipos, testes e build.
+- Interface sem cartas, preços ou oportunidades de demonstração.
 
-- Dashboard editorial responsivo inspirado na referência vinho/creme fornecida
-- Coleção persistida no navegador para demonstração
-- Busca real de cartas via TCGdex
-- Inclusão de cartas do catálogo na coleção
-- Página de oportunidades e Opportunity Score
-- Upload de imagem no scanner
-- Serviço Python com correção de perspectiva + OCR + resolução via TCGdex
-- Confirmação manual do resultado antes de adicionar à coleção
-- Prisma schema ampliado para catálogo, coleção, wishlist, preços, ofertas, alertas e sessões de scan
-- Docker Compose para web + scanner + PostgreSQL + Redis
+O scanner só responde quando um serviço OCR real estiver configurado. Sem ele, informa a indisponibilidade; não inventa uma correspondência.
 
-## Stack do MVP
-
-```text
-Browser
-  │
-  ▼
-Next.js 15 / React 19
-  ├── catálogo → TCGdex REST API
-  ├── coleção demo → localStorage
-  └── scanner proxy
-          │
-          ▼
-FastAPI + OpenCV + Tesseract
-  └── resolução → TCGdex REST API
-
-PostgreSQL + Prisma: schema preparado para persistência da próxima etapa
-Redis: preparado para jobs/preços/alertas
-```
-
-## Rodar somente o frontend
+## Rodar o projeto
 
 ```bash
 npm install
-npm run dev
+copy .env.example .env
+docker compose up --build
+```
+
+Depois aplique o banco em outro terminal:
+
+```bash
+npm run prisma:migrate:deploy
 ```
 
 Abra `http://localhost:3000`.
 
-Sem `SCANNER_URL`, o scanner entra em modo demonstração. Catálogo e detalhes continuam consultando TCGdex.
+Para desenvolvimento sem Docker, configure um PostgreSQL com a `DATABASE_URL` de `.env` e execute os mesmos comandos. O `Docker Desktop` é necessário nesta máquina para subir a stack completa.
 
-## Rodar tudo com Docker
+## Registrar uma observação real
+
+Defina `MARKET_INGESTION_TOKEN` em `.env` e envie uma observação somente quando ela vier de uma página/fonte verificável:
 
 ```bash
-docker compose up --build
+curl -X POST http://localhost:3000/api/market/observations \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer SEU_TOKEN" \
+  --data-binary @observacao-real.json
 ```
 
-- Web: `http://localhost:3000`
-- Scanner API: `http://localhost:8001`
-- Scanner health: `http://localhost:8001/health`
-- PostgreSQL: `localhost:5432`
-- Redis: `localhost:6379`
+O arquivo deve conter `product.id`, `product.name`, `source`, `sourceUrl`, `price`, `condition`, `language`, `variant` e, quando aplicável, `gradeCompany` e `gradeValue`. Todos os valores devem vir da observação real; não envie placeholders ao ambiente em produção.
 
-## Estrutura
+Consulte o formato, a pesquisa de fontes e as limitações atuais em [docs/market-sources.md](docs/market-sources.md).
 
-```text
-apps/web/                  interface Next.js + BFF/API routes
-packages/database/         schema Prisma
-services/ai/               scanner OpenCV/Tesseract/FastAPI
-services/price-engine/     próximo módulo de coleta/agregação de preços
-services/telegram-worker/  próximo módulo de monitoramento
-packages/core/             regras de negócio compartilháveis
+## Verificação
+
+```bash
+npm run prisma:validate
+npm run prisma:generate
+npm run lint
+npm run typecheck
+npm run test
+npm run build
 ```
 
-## Próximas entregas de produto
+## Próximos blocos de produto
 
-1. Persistir usuários/coleção no PostgreSQL e trocar localStorage por API.
-2. Sincronizar catálogo TCGdex para banco local.
-3. Registrar snapshots de preços e gráfico histórico.
-4. Implementar importação de ofertas reais por connectors permitidos.
-5. Calibrar Opportunity Score com liquidez/histórico real.
-6. Scanner multi-carta e página de fichário.
-7. Alertas e Telegram.
-8. Autenticação, wishlist, master sets e produtos selados.
+1. Conectores autorizados para fontes brasileiras e comparador Liga Pokémon.
+2. Deal Radar com deduplicação, Telegram/Discord e alertas.
+3. Persistência de coleção, timeline de portfólio, P/L e ROI por usuário.
 
 ## Aviso
 

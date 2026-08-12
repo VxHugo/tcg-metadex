@@ -37,9 +37,3 @@ export async function getCard(id: string): Promise<CardDetail> {
 
   return (await response.json()) as CardDetail;
 }
-
-export function getReferencePrice(card?: CardDetail | null): number {
-  if (!card?.pricing?.cardmarket) return 0;
-  const market = card.pricing.cardmarket;
-  return Number(market.trend ?? market.avg7 ?? market.avg ?? market.low ?? 0);
-}

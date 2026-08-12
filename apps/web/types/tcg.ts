@@ -50,8 +50,8 @@ export type CollectionEntry = {
   number?: string;
   rarity?: string;
   quantity: number;
-  paid: number;
-  market: number;
+  paid: number | null;
+  market: number | null;
   condition: "NM" | "LP" | "MP" | "HP";
   addedAt: string;
 };
@@ -74,5 +74,4 @@ export type ScanCandidate = {
   setName?: string;
   image?: string;
   confidence: number;
-  market?: number;
 };

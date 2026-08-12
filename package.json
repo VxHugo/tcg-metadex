@@ -3,12 +3,26 @@
   "private": true,
   "version": "0.1.0",
   "workspaces": [
-    "apps/web"
+    "apps/web",
+    "services/market-engine"
   ],
   "scripts": {
     "dev": "npm run dev --workspace @tcg-intelligence/web",
     "build": "npm run build --workspace @tcg-intelligence/web",
     "start": "npm run start --workspace @tcg-intelligence/web",
-    "lint": "npm run lint --workspace @tcg-intelligence/web"
+    "lint": "npm run lint --workspace @tcg-intelligence/web",
+    "typecheck": "npm run typecheck --workspace @tcg-intelligence/web && npm run typecheck --workspace @tcg-intelligence/market-engine",
+    "test": "vitest run",
+    "prisma:validate": "dotenv -e .env.example -- prisma validate --schema packages/database/schema.prisma",
+    "prisma:generate": "dotenv -e .env.example -- prisma generate --schema packages/database/schema.prisma",
+    "prisma:migrate:deploy": "prisma migrate deploy --schema packages/database/schema.prisma"
+  },
+  "devDependencies": {
+    "@eslint/eslintrc": "^3.3.1",
+    "dotenv-cli": "^8.0.0",
+    "eslint": "^9.0.0",
+    "eslint-config-next": "^15.5.23",
+    "prisma": "^6.0.0",
+    "vitest": "^3.0.0"
   }
 }
