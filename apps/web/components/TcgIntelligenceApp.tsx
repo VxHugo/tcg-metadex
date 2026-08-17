@@ -4,6 +4,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type FormEvent, type ReactNode } from "react";
 import { cardImage } from "@/lib/tcgdex";
 import { sealedCategories, type SealedCategoryId, type SealedOffersResponse } from "@/lib/sealed-products";
+import { emptyRecommendations, type RecommendationsResponse } from "@/lib/recommendations";
 import type { CardBrief, CardDetail, CollectionEntry, ScanCandidate, TcgSetBrief } from "@/types/tcg";
 
 type View = "home" | "collection" | "catalog" | "scanner" | "opportunities";
@@ -45,7 +46,7 @@ function CardArtwork({ image, name, className = "" }: { image?: string; name: st
 }
 
 const navigation: Array<{ view: View; label: string; icon: IconName }> = [
-  { view: "opportunities", label: "Comprar selados", icon: "spark" },
+  { view: "opportunities", label: "Oportunidades", icon: "spark" },
   { view: "home", label: "Resumo", icon: "grid" },
   { view: "catalog", label: "Catálogo", icon: "cards" },
   { view: "collection", label: "Minha coleção", icon: "box" },
@@ -58,14 +59,14 @@ function Brand({ compact = false }: { compact?: boolean }) {
 
 function Header({ setActive }: { setActive: (view: View) => void }) {
   return <header className="topbar">
-    <button className="brand-button" onClick={() => setActive("home")} aria-label="Ir para visão geral"><Brand /></button>
-    <button className="global-search" onClick={() => setActive("opportunities")} aria-label="Abrir radar de produtos selados"><Icon name="search" size={17} /><span>Busque packs, boxes, coleções e promoções...</span><kbd>/</kbd></button>
+    <button className="brand-button" onClick={() => setActive("opportunities")} aria-label="Ir para oportunidades de compra"><Brand /></button>
+    <button className="global-search" onClick={() => setActive("opportunities")} aria-label="Abrir recomendações de compra"><Icon name="search" size={17} /><span>Veja recomendações e preços abaixo da referência...</span><kbd>/</kbd></button>
     <div className="topbar-actions"><button className="icon-button" aria-label="Notificações"><Icon name="bell" size={19} /></button><button className="avatar" aria-label="Perfil do usuário">VH</button></div>
   </header>;
 }
 
 function Sidebar({ active, setActive }: { active: View; setActive: (view: View) => void }) {
-  return <aside className="sidebar"><nav aria-label="Navegação principal">{navigation.map((item) => <button key={item.view} className={active === item.view ? "is-active" : ""} onClick={() => setActive(item.view)}><Icon name={item.icon} /><span>{item.label}</span></button>)}</nav><div className="sidebar-bottom"><div className="help-card"><span className="help-icon"><Icon name="spark" size={16} /></span><strong>Comece pelos selados</strong><p>Veja packs, booster boxes, blisters e coleções.</p><button onClick={() => setActive("opportunities")}>Ver ofertas <Icon name="arrow" size={14} /></button></div><small>MetaDex · compre com dados</small></div></aside>;
+  return <aside className="sidebar"><nav aria-label="Navegação principal">{navigation.map((item) => <button key={item.view} className={active === item.view ? "is-active" : ""} onClick={() => setActive(item.view)}><Icon name={item.icon} /><span>{item.label}</span></button>)}</nav><div className="sidebar-bottom"><div className="help-card"><span className="help-icon"><Icon name="spark" size={16} /></span><strong>Comece pelas oportunidades</strong><p>Compare ofertas, referência e sinais de alta observada.</p><button onClick={() => setActive("opportunities")}>Ver recomendações <Icon name="arrow" size={14} /></button></div><small>MetaDex · compre com dados</small></div></aside>;
 }
 
 function MobileNav({ active, setActive }: { active: View; setActive: (view: View) => void }) {
@@ -159,6 +160,8 @@ function SealedOffersView({ initialSets, onExploreSet }: { initialSets: TcgSetBr
   const [selectedCategory, setSelectedCategory] = useState<SealedCategoryId>("booster-box");
   const [radar, setRadar] = useState<SealedOffersResponse>({ status: "source_not_configured", offers: [], categories: sealedCategories, message: "O radar automático precisa de uma fonte autorizada. Enquanto isso, abra a busca atualizada da categoria diretamente na loja.", observedAt: null });
   const [loadingOffers, setLoadingOffers] = useState(false);
+  const [recommendations, setRecommendations] = useState<RecommendationsResponse>(emptyRecommendations);
+  const [loadingRecommendations, setLoadingRecommendations] = useState(true);
   const [sets, setSets] = useState<TcgSetBrief[]>(initialSets);
   const [setsQuery, setSetsQuery] = useState("Mega");
   const [setsError, setSetsError] = useState("");
@@ -177,6 +180,20 @@ function SealedOffersView({ initialSets, onExploreSet }: { initialSets: TcgSetBr
     }
   }, []);
 
+  const loadRecommendations = useCallback(async () => {
+    setLoadingRecommendations(true);
+    try {
+      const response = await fetch("/api/recommendations");
+      const payload = await response.json() as RecommendationsResponse & { error?: string };
+      if (!response.ok && payload.status !== "storage_unavailable") throw new Error(payload.error ?? "Não foi possível calcular as recomendações.");
+      setRecommendations(payload);
+    } catch (reason) {
+      setRecommendations({ ...emptyRecommendations, status: "storage_unavailable", message: reason instanceof Error ? reason.message : "Não foi possível calcular as recomendações." });
+    } finally {
+      setLoadingRecommendations(false);
+    }
+  }, []);
+
   const loadSets = useCallback(async (term: string) => {
     setSetsError("");
     try {
@@ -190,12 +207,14 @@ function SealedOffersView({ initialSets, onExploreSet }: { initialSets: TcgSetBr
   }, []);
 
   useEffect(() => { void loadOffers(selectedCategory); }, [loadOffers, selectedCategory]);
+  useEffect(() => { void loadRecommendations(); }, [loadRecommendations]);
   useEffect(() => { if (!initialSets.length) void loadSets("Mega"); }, [initialSets.length, loadSets]);
 
   const categories = radar.categories;
   const activeCategory = categories.find((category) => category.id === selectedCategory) ?? null;
   const offers = radar.offers;
   const observed = radar.observedAt ? new Intl.DateTimeFormat("pt-BR", { dateStyle: "short", timeStyle: "short" }).format(new Date(radar.observedAt)) : null;
+  const recommendationsObserved = recommendations.observedAt ? new Intl.DateTimeFormat("pt-BR", { dateStyle: "short", timeStyle: "short" }).format(new Date(recommendations.observedAt)) : null;
 
   function chooseCategory(category: SealedCategoryId) {
     setSelectedCategory(category);
@@ -210,10 +229,25 @@ function SealedOffersView({ initialSets, onExploreSet }: { initialSets: TcgSetBr
     document.getElementById("sets-directory")?.scrollIntoView({ behavior: "smooth", block: "start" });
   }
 
+  function scrollToRecommendations() {
+    document.getElementById("buy-recommendations")?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+
   return <>
     <section className="sealed-hero">
-      <div className="sealed-hero-copy"><span className="sealed-kicker"><i />RADAR DE SELADOS · POKÉMON TCG</span><h1>Compre selados com <em>mais clareza.</em></h1><p>Encontre o formato que você quer abrir ou guardar. Toda oferta mostra a fonte e leva você para a página original da loja.</p><div className="sealed-hero-actions">{activeCategory ? <a className="hero-primary" href={activeCategory.sourceUrl} target="_blank" rel="noreferrer">Ver {activeCategory.label}<Icon name="arrow" size={17} /></a> : null}<button className="hero-secondary" type="button" onClick={scrollToCollections}>Explorar coleções <Icon name="arrow" size={17} /></button></div><div className="sealed-trust"><span><Icon name="search" size={16} />Fonte e link</span><span><Icon name="spark" size={16} />Desconto rastreável</span><span><Icon name="box" size={16} />Produto lacrado</span></div></div>
-      <div className="sealed-visual" aria-hidden="true"><span className="sealed-orbit orbit-one" /><span className="sealed-orbit orbit-two" /><span className="sealed-orbit orbit-three" /><span className="sealed-sweep" /><div className="sealed-pack-visual"><small>TCG METADEX</small><b>OPEN<br />SMART</b><span>7 FORMATOS</span></div><div className="sealed-visual-label"><i />MONITORANDO FORMATO</div></div>
+      <div className="sealed-hero-copy"><span className="sealed-kicker"><i />RECOMENDAÇÕES DE COMPRA · POKÉMON TCG</span><h1>Veja o que está <em>abaixo da referência.</em></h1><p>O MetaDex prioriza ofertas que possam ser comparadas com o mesmo card, condição, idioma, variante e grade. Depois, você explora packs, boxes e coleções.</p><div className="sealed-hero-actions"><button className="hero-primary" type="button" onClick={scrollToRecommendations}>Ver melhores achados <Icon name="arrow" size={17} /></button><button className="hero-secondary" type="button" onClick={scrollToCollections}>Explorar coleções <Icon name="arrow" size={17} /></button></div><div className="sealed-trust"><span><Icon name="search" size={16} />Fonte e link</span><span><Icon name="spark" size={16} />Referência equivalente</span><span><Icon name="cards" size={16} />Sinais observados</span></div></div>
+      <div className="sealed-visual" aria-hidden="true"><span className="sealed-orbit orbit-one" /><span className="sealed-orbit orbit-two" /><span className="sealed-orbit orbit-three" /><span className="sealed-sweep" /><div className="sealed-pack-visual"><small>TCG METADEX</small><b>BUY<br />SMART</b><span>PREÇO · PROVA</span></div><div className="sealed-visual-label"><i />MONITORANDO MERCADO</div></div>
+    </section>
+
+    <section className="recommendations-section" id="buy-recommendations">
+      <div className="section-head recommendations-head"><div><span className="eyebrow">PRIMEIRO: OPORTUNIDADES REAIS</span><h2>Achados abaixo da referência</h2><p>Uma oferta entra aqui somente após comparação com pelo menos três observações atuais e equivalentes.</p></div><button className="refresh-button" type="button" onClick={() => void loadRecommendations()} disabled={loadingRecommendations}><Icon name="spark" size={15} />{loadingRecommendations ? "Atualizando…" : "Atualizar sinais"}</button></div>
+      {loadingRecommendations ? <div className="recommendations-loading"><span /><span /><span /></div> : recommendations.deals.length ? <div className="recommendation-grid">{recommendations.deals.map((deal) => <article className="recommendation-card" key={deal.id}><div className="recommendation-art">{deal.imageUrl ? <CardArtwork image={deal.imageUrl} name={deal.productName} /> : <span><Icon name={deal.productType === "CARD" ? "cards" : "box"} size={28} /></span>}<b>−{deal.discountPercent}%</b></div><div className="recommendation-copy"><span>{deal.source}{deal.seller ? ` · ${deal.seller}` : ""}</span><h3>{deal.productName}</h3>{deal.localNumber ? <p>#{deal.localNumber} · Score {deal.dealScore}/100</p> : <p>Score {deal.dealScore}/100</p>}<div className="recommendation-prices"><strong>{money(deal.offerPrice)}</strong><small>referência {money(deal.referencePrice)}</small></div><dl><div><dt>Economia</dt><dd>{money(deal.savings)}</dd></div><div><dt>Base</dt><dd>{deal.referenceListings} observações</dd></div></dl><p className="recommendation-proof">Referência: {deal.referenceSources.join(" · ")}</p></div><a className="buy-button" href={deal.sourceUrl} target="_blank" rel="noreferrer">Ver oferta <Icon name="arrow" size={15} /></a></article>)}</div> : <div className="recommendations-empty"><span className="opportunity-orbit"><Icon name="spark" size={27} /></span><div><span className="eyebrow">AGUARDANDO DADOS COMPARÁVEIS</span><h3>Ainda não há uma pechincha verificada.</h3><p>{recommendations.message}</p><small>Para entrar no ranking, a oferta precisa ter fonte, URL, preço e três referências equivalentes. Isso impede que o app chame qualquer anúncio de promoção.</small></div></div>}
+      <p className="recommendations-disclaimer">{recommendationsObserved ? `Dados mais recentes: ${recommendationsObserved}. ` : ""}Cobertura atual: {recommendations.coverage.observations} observações, {recommendations.coverage.products} produtos e {recommendations.coverage.sources} fontes.</p>
+    </section>
+
+    <section className="value-signals-section">
+      <div className="section-head"><div><span className="eyebrow">CARTAS EM OBSERVAÇÃO</span><h2>Sinais de alta observada</h2><p>Movimento de preço registrado nos últimos 30 dias. Não é promessa nem previsão de valorização.</p></div><span className="signal-pill"><Icon name="spark" size={14} />dados, não palpite</span></div>
+      {loadingRecommendations ? <div className="signal-loading"><span /><span /><span /></div> : recommendations.valueSignals.length ? <div className="signal-grid">{recommendations.valueSignals.map((signal) => <article className="signal-card" key={signal.id}>{signal.imageUrl ? <CardArtwork image={signal.imageUrl} name={signal.productName} /> : <span className="signal-placeholder"><Icon name="cards" size={23} /></span>}<div><span>+{signal.changePercent}% em {signal.windowDays} dias</span><h3>{signal.productName}</h3><p>De {money(signal.baselinePrice)} para {money(signal.currentPrice)} · {signal.sourceCount} fontes</p></div><b>{signal.score}<small>/100</small></b></article>)}</div> : <div className="signals-empty"><Icon name="cards" size={22} /><p>Quando houver histórico recente de pelo menos duas fontes, as cartas com alta observada aparecerão aqui — sempre como sinal, nunca como garantia.</p></div>}
     </section>
 
     <section className="sealed-category-grid" aria-label="Categorias de produtos selados">

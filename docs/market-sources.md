@@ -31,6 +31,12 @@ Quando conectado, o radar preserva título, preço, preço anterior quando a fon
 
 O endpoint autenticável `POST /api/market/observations` aceita uma observação real de um administrador/fonte autorizada e persiste um snapshot auditável no PostgreSQL. O Market Engine calcula mediana, média, menor valor, confiança, tendência, desconto e elegibilidade de alerta apenas entre observações equivalentes em carta, condição, idioma, variante e grade.
 
+## Recomendações de compra e sinais de carta
+
+A primeira tela do MetaDex consulta `GET /api/recommendations`. Ela não tem dados de exemplo: uma oportunidade só é publicada quando a oferta tem URL e preço verificáveis e fica pelo menos 12% abaixo de três ou mais observações atuais, equivalentes e de outras fontes. O card mostra preço da oferta, preço de referência, economia, fontes que formaram a referência e horário da consulta.
+
+O bloco de cartas usa somente uma tendência positiva observada nos últimos 30 dias, com no mínimo três pontos em dias diferentes e duas fontes. Ele é chamado de **sinal de alta observada**, nunca de previsão, garantia ou recomendação financeira. Sem dados suficientes, os dois blocos permanecem vazios e explicam o critério que falta.
+
 ## Próximo conector externo
 
 Antes de ligar Liga Pokémon ou MYP Cards como provider automático: registrar os termos consultados, a frequência permitida, cache/rate limit e o campo de identificação que preserva condição, idioma, variante e URL original.
