@@ -60,8 +60,21 @@ export type CollectionEntry = {
   quantity: number;
   paid: number | null;
   market: number | null;
-  condition: "NM" | "LP" | "MP" | "HP";
+  profitLoss: number | null;
+  condition: "NM" | "LP" | "MP" | "HP" | "DAMAGED";
+  purchaseDate: string | null;
   addedAt: string;
+};
+
+export type PortfolioSummary = {
+  totalCards: number;
+  invested: number;
+  currentValue: number;
+  profitLoss: number | null;
+  roiPercent: number | null;
+  costedPositions: number;
+  quotedPositions: number;
+  comparablePositions: number;
 };
 
 export type Opportunity = {
