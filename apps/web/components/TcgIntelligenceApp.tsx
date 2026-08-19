@@ -5,7 +5,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, 
 import { cardImage } from "@/lib/tcgdex";
 import { sealedCategories, type SealedCategoryId, type SealedOffersResponse } from "@/lib/sealed-products";
 import { emptyRecommendations, type RecommendationsResponse } from "@/lib/recommendations";
-import type { CardBrief, CardDetail, CollectionEntry, ScanCandidate, TcgSetBrief } from "@/types/tcg";
+import type { CardBrief, CardDetail, CollectionEntry, PortfolioSummary, ScanCandidate, TcgSetBrief } from "@/types/tcg";
 
 type View = "home" | "collection" | "catalog" | "scanner" | "opportunities";
 type IconName = "grid" | "cards" | "box" | "scan" | "spark" | "bell" | "search" | "plus" | "arrow" | "sliders" | "heart" | "camera" | "chevron" | "more" | "close";
@@ -77,23 +77,21 @@ function Metric({ label, value, description, icon, tone = "blue" }: { label: str
   return <article className={`metric-card tone-${tone}`}><div className="metric-top"><span>{label}</span><i><Icon name={icon} size={17} /></i></div><strong>{value}</strong><small>{description}</small></article>;
 }
 
-function HomeView({ collection, collectionError, setActive }: { collection: CollectionEntry[]; collectionError: string; setActive: (view: View) => void }) {
+function HomeView({ collection, summary, collectionError, setActive }: { collection: CollectionEntry[]; summary: PortfolioSummary; collectionError: string; setActive: (view: View) => void }) {
   const totals = useMemo(() => {
     const cards = collection.reduce((sum, item) => sum + item.quantity, 0);
     const sets = new Set(collection.map((item) => item.setName).filter(Boolean)).size;
-    const priced = collection.filter((item) => item.market !== null);
-    const marketValue = priced.reduce((sum, item) => sum + (item.market ?? 0) * item.quantity, 0);
-    return { cards, sets, priced: priced.length, marketValue };
+    return { cards, sets };
   }, [collection]);
   const highlights = collection.slice(0, 3);
 
   return <>
     <section className="page-heading dashboard-heading"><div><span className="eyebrow">SEU ESPAÇO DE COLEÇÃO</span><h1>Olá, <em>Hugo.</em></h1><p>Uma visão objetiva do seu acervo e dos próximos passos.</p></div><button className="primary-button" onClick={() => setActive("scanner")}><Icon name="scan" />Escanear carta</button></section>
     <section className="metric-grid">
-      <Metric label="Valor de mercado" value={totals.priced ? money(totals.marketValue) : "Sem dados"} description={totals.priced ? "com snapshots verificados" : "aguardando fonte de preço"} icon="spark" />
+      <Metric label="Valor cotado" value={summary.quotedPositions ? money(summary.currentValue) : "Sem dados"} description={summary.quotedPositions ? "apenas cotações verificáveis" : "aguardando fonte de preço"} icon="spark" />
       <Metric label="Cartas na coleção" value={String(totals.cards)} description={`${totals.sets} sets diferentes`} icon="cards" tone="green" />
-      <Metric label="Oportunidades" value="0" description="nenhuma oferta verificada" icon="spark" tone="orange" />
-      <Metric label="Alertas ativos" value="0" description="crie sua primeira wishlist" icon="bell" tone="slate" />
+      <Metric label="Resultado P/L" value={summary.profitLoss === null ? "Sem base" : money(summary.profitLoss)} description={summary.comparablePositions ? `${summary.comparablePositions} posição(ões) comparável(is)` : "registre custo e aguarde cotação"} icon="spark" tone="orange" />
+      <Metric label="Investido" value={summary.costedPositions ? money(summary.invested) : "Não informado"} description={summary.costedPositions ? "com base no que você pagou" : "registre o custo ao adicionar"} icon="bell" tone="slate" />
     </section>
     <section className="dashboard-columns">
       <article className="content-card collection-preview"><div className="section-head"><div><span className="eyebrow">COLEÇÃO</span><h2>Adicionadas recentemente</h2></div><button className="link-button" onClick={() => setActive("collection")}>Ver coleção <Icon name="arrow" size={15} /></button></div>
@@ -110,16 +108,37 @@ function EmptyInline({ icon, title, copy, action, onAction }: { icon: IconName; 
   return <div className="empty-inline"><span className="empty-icon"><Icon name={icon} size={22} /></span><div><strong>{title}</strong><p>{copy}</p><button onClick={onAction}>{action} <Icon name="arrow" size={14} /></button></div></div>;
 }
 
-function CollectionView({ collection, collectionError, loading, removeItem, setActive }: { collection: CollectionEntry[]; collectionError: string; loading: boolean; removeItem: (id: string) => Promise<void>; setActive: (view: View) => void }) {
+type CollectionDraft = { quantity: number; paid: number | null; condition: CollectionEntry["condition"]; purchaseDate: string | null; language: string | null; notes: string | null };
+
+function AddToCollectionDialog({ card, saving, onClose, onSave }: { card: CardDetail; saving: boolean; onClose: () => void; onSave: (draft: CollectionDraft) => Promise<void> }) {
+  const [quantity, setQuantity] = useState(1);
+  const [paid, setPaid] = useState("");
+  const [condition, setCondition] = useState<CollectionEntry["condition"]>("NM");
+  const [purchaseDate, setPurchaseDate] = useState(new Date().toISOString().slice(0, 10));
+  const [language, setLanguage] = useState("Português");
+  const [notes, setNotes] = useState("");
+
+  async function submit(event: FormEvent) {
+    event.preventDefault();
+    const parsedPaid = paid.trim() ? Number(paid.replace(",", ".")) : null;
+    if (parsedPaid !== null && (!Number.isFinite(parsedPaid) || parsedPaid < 0)) return;
+    await onSave({ quantity, paid: parsedPaid, condition, purchaseDate: purchaseDate || null, language: language || null, notes: notes.trim() || null });
+  }
+
+  return <div className="dialog-backdrop" role="presentation"><section className="collection-dialog" role="dialog" aria-modal="true" aria-labelledby="collection-dialog-title"><button className="dialog-close" onClick={onClose} disabled={saving} aria-label="Fechar"><Icon name="close" /></button><div className="dialog-card"><CardArtwork image={card.image} name={card.name} /><div><span className="eyebrow">ADICIONAR AO ACERVO</span><h2 id="collection-dialog-title">{card.name}</h2><p>{card.set?.name ?? "Set não informado"} · #{card.localId}</p></div></div><form className="collection-form" onSubmit={(event) => void submit(event)}><label>Quantidade<input type="number" min="1" max="10000" value={quantity} onChange={(event) => setQuantity(Math.max(1, Number(event.target.value) || 1))} /></label><label>Condição<select value={condition} onChange={(event) => setCondition(event.target.value as CollectionEntry["condition"])}><option value="NM">NM · Near Mint</option><option value="LP">LP · Levemente jogada</option><option value="MP">MP · Moderadamente jogada</option><option value="HP">HP · Muito jogada</option><option value="DAMAGED">Danificada</option></select></label><label>Preço pago por unidade (R$)<input type="number" min="0" step="0.01" inputMode="decimal" value={paid} onChange={(event) => setPaid(event.target.value)} placeholder="Opcional" /></label><label>Data da compra<input type="date" value={purchaseDate} onChange={(event) => setPurchaseDate(event.target.value)} /></label><label>Idioma<select value={language} onChange={(event) => setLanguage(event.target.value)}><option value="Português">Português</option><option value="Inglês">Inglês</option><option value="Japonês">Japonês</option><option value="">Não informado</option></select></label><label className="form-span">Anotações<textarea value={notes} onChange={(event) => setNotes(event.target.value)} placeholder="Ex.: comprada em evento, trocada, lote…" rows={2} /></label><p className="form-note">O valor atual só aparecerá quando houver uma cotação verificável do mesmo perfil da carta.</p><div className="dialog-actions"><button type="button" className="secondary-button" onClick={onClose} disabled={saving}>Cancelar</button><button className="primary-button" disabled={saving}>{saving ? "Salvando…" : "Salvar na coleção"}</button></div></form></section></div>;
+}
+
+function CollectionView({ collection, summary, collectionError, loading, removeItem, setActive }: { collection: CollectionEntry[]; summary: PortfolioSummary; collectionError: string; loading: boolean; removeItem: (id: string) => Promise<void>; setActive: (view: View) => void }) {
   const [query, setQuery] = useState("");
   const [removing, setRemoving] = useState<string | null>(null);
   const filtered = collection.filter((item) => `${item.name} ${item.setName ?? ""}`.toLowerCase().includes(query.toLowerCase()));
   async function remove(id: string) { setRemoving(id); await removeItem(id); setRemoving(null); }
   return <>
     <section className="page-heading"><div><span className="eyebrow">SEU ACERVO</span><h1>Minha <em>coleção</em></h1><p>Organize as cartas que já fazem parte da sua história.</p></div><button className="primary-button" onClick={() => setActive("catalog")}><Icon name="plus" />Adicionar carta</button></section>
+    <section className="portfolio-strip"><Metric label="Quanto você pagou" value={summary.costedPositions ? money(summary.invested) : "Não informado"} description={`${summary.costedPositions} posição(ões) com custo`} icon="cards" /><Metric label="Valor atual cotado" value={summary.quotedPositions ? money(summary.currentValue) : "Sem cotação"} description="somente preços verificáveis" icon="spark" tone="green" /><Metric label="Lucro / prejuízo" value={summary.profitLoss === null ? "Sem base" : money(summary.profitLoss)} description={summary.profitLoss === null ? "falta custo ou cotação" : `${summary.roiPercent ?? 0}% de retorno comparável`} icon="spark" tone={summary.profitLoss !== null && summary.profitLoss < 0 ? "orange" : "blue"} /></section>
     <section className="workspace-card"><div className="collection-toolbar"><div className="search-field"><Icon name="search" size={18} /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Buscar por carta ou set..." aria-label="Buscar na coleção" /></div><button className="filter-button"><Icon name="sliders" size={17} />Filtros</button><span className="result-count">{filtered.length} {filtered.length === 1 ? "item" : "itens"}</span></div>
       {collectionError ? <div className="notice notice-warning">{collectionError}</div> : null}
-      {filtered.length ? <div className="collection-table">{filtered.map((item) => <article className="collection-row" key={item.id}><CardArtwork image={item.image} name={item.name} /><div className="card-identity"><strong>{item.name}</strong><span>{item.setName ?? "Set não informado"} · #{item.number ?? "—"}</span></div><div><span className="column-label">CONDIÇÃO</span><b>{item.condition}</b></div><div><span className="column-label">QUANTIDADE</span><b>×{item.quantity}</b></div><div><span className="column-label">MERCADO</span><b>{item.market === null ? "—" : money(item.market)}</b></div><button className="row-menu" aria-label={`Remover ${item.name} da coleção`} onClick={() => void remove(item.id)} disabled={removing === item.id}>{removing === item.id ? <Icon name="close" /> : <Icon name="more" />}</button></article>)}</div> : <div className="large-empty"><span className="empty-icon"><Icon name="box" size={28} /></span><h2>{loading ? "Carregando sua coleção..." : query ? "Nenhuma carta encontrada" : "Sua coleção ainda começa aqui"}</h2><p>{query ? "Tente outro nome ou limpe a busca." : "Pesquise uma carta no catálogo ou use o scanner para começar seu acervo."}</p>{!query ? <button className="primary-button" onClick={() => setActive("catalog")}><Icon name="search" />Explorar catálogo</button> : null}</div>}
+      {filtered.length ? <div className="collection-table">{filtered.map((item) => <article className="collection-row" key={item.id}><CardArtwork image={item.image} name={item.name} /><div className="card-identity"><strong>{item.name}</strong><span>{item.setName ?? "Set não informado"} · #{item.number ?? "—"}</span></div><div><span className="column-label">PAGO</span><b>{item.paid === null ? "—" : money(item.paid)}</b></div><div><span className="column-label">MERCADO</span><b>{item.market === null ? "Sem cotação" : money(item.market)}</b></div><div><span className="column-label">RESULTADO</span><b className={item.profitLoss !== null && item.profitLoss < 0 ? "loss-value" : "gain-value"}>{item.profitLoss === null ? "—" : money(item.profitLoss)}</b></div><div><span className="column-label">QTD.</span><b>×{item.quantity}</b></div><button className="row-menu" aria-label={`Remover ${item.name} da coleção`} onClick={() => void remove(item.id)} disabled={removing === item.id}>{removing === item.id ? <Icon name="close" /> : <Icon name="more" />}</button></article>)}</div> : <div className="large-empty"><span className="empty-icon"><Icon name="box" size={28} /></span><h2>{loading ? "Carregando sua coleção..." : query ? "Nenhuma carta encontrada" : "Sua coleção ainda começa aqui"}</h2><p>{query ? "Tente outro nome ou limpe a busca." : "Pesquise uma carta no catálogo ou use o scanner para começar seu acervo."}</p>{!query ? <button className="primary-button" onClick={() => setActive("catalog")}><Icon name="search" />Explorar catálogo</button> : null}</div>}
     </section>
   </>;
 }
@@ -268,23 +287,29 @@ export function TcgIntelligenceApp({ initialSets = [] }: { initialSets?: TcgSetB
   const [active, setActive] = useState<View>("opportunities");
   const [catalogQuery, setCatalogQuery] = useState("Pikachu");
   const [collection, setCollection] = useState<CollectionEntry[]>([]);
+  const [summary, setSummary] = useState<PortfolioSummary>({ totalCards: 0, invested: 0, currentValue: 0, profitLoss: null, roiPercent: null, costedPositions: 0, quotedPositions: 0, comparablePositions: 0 });
   const [collectionError, setCollectionError] = useState("");
   const [collectionLoading, setCollectionLoading] = useState(true);
+  const [selectedCard, setSelectedCard] = useState<CardDetail | null>(null);
+  const [savingCard, setSavingCard] = useState(false);
 
   useEffect(() => {
-    try {
-      const saved = window.localStorage.getItem("tcg-metadex-collection-v2");
-      if (saved) setCollection(JSON.parse(saved) as CollectionEntry[]);
-    } catch {
-      setCollectionError("Não foi possível recuperar a coleção salva neste navegador.");
-    } finally {
-      setCollectionLoading(false);
+    async function loadCollection() {
+      try {
+        const response = await fetch("/api/collection");
+        const payload = await response.json();
+        if (!response.ok) throw new Error(payload.error ?? "Não foi possível abrir sua coleção.");
+        setCollection(payload.items ?? []);
+        setSummary(payload.summary ?? { totalCards: 0, invested: 0, currentValue: 0, profitLoss: null, roiPercent: null, costedPositions: 0, quotedPositions: 0, comparablePositions: 0 });
+        setCollectionError("");
+      } catch {
+        setCollectionError("A coleção não pôde ser carregada do banco local. Tente atualizar a página.");
+      } finally {
+        setCollectionLoading(false);
+      }
     }
+    void loadCollection();
   }, []);
-
-  useEffect(() => {
-    if (!collectionLoading) window.localStorage.setItem("tcg-metadex-collection-v2", JSON.stringify(collection));
-  }, [collection, collectionLoading]);
 
   async function addCard(cardId: string) {
     const response = await fetch(`/api/card/${encodeURIComponent(cardId)}`);
@@ -292,24 +317,37 @@ export function TcgIntelligenceApp({ initialSets = [] }: { initialSets?: TcgSetB
     if (!response.ok) throw new Error(payload.error ?? "Não foi possível localizar a carta.");
     const card = payload.card as CardDetail | undefined;
     if (!card?.id) throw new Error("O catálogo não retornou uma carta válida.");
+    setSelectedCard(card);
+  }
 
-    setCollection((current) => {
-      const existing = current.find((item) => item.cardId === card.id);
-      if (existing) return current.map((item) => item.id === existing.id ? { ...item, quantity: item.quantity + 1 } : item);
-      return [{
-        id: crypto.randomUUID(), cardId: card.id, name: card.name, image: card.image,
-        setName: card.set?.name, number: String(card.localId), rarity: card.rarity,
-        quantity: 1, paid: null, market: null, condition: "NM", addedAt: new Date().toISOString(),
-      }, ...current];
-    });
-    setCollectionError("");
-    setActive("collection");
+  async function saveCard(draft: CollectionDraft) {
+    if (!selectedCard) return;
+    setSavingCard(true);
+    try {
+      const response = await fetch("/api/collection", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({
+        card: { id: selectedCard.id, name: selectedCard.name, image: selectedCard.image, localNumber: String(selectedCard.localId), rarity: selectedCard.rarity, set: selectedCard.set ? { id: selectedCard.set.id, name: selectedCard.set.name, logo: selectedCard.set.logo, symbol: selectedCard.set.symbol } : undefined },
+        ...draft,
+      }) });
+      const payload = await response.json();
+      if (!response.ok) throw new Error(payload.error ?? "Não foi possível salvar esta carta.");
+      setCollection(payload.items ?? []);
+      setSummary(payload.summary ?? summary);
+      setSelectedCard(null);
+      setCollectionError("");
+      setActive("collection");
+    } catch {
+      setCollectionError("Não foi possível salvar no banco local. Verifique se o PostgreSQL do MetaDex está em execução.");
+    } finally {
+      setSavingCard(false);
+    }
   }
 
   async function removeItem(id: string) {
+    const response = await fetch(`/api/collection/${encodeURIComponent(id)}`, { method: "DELETE" });
+    if (!response.ok) throw new Error("Não foi possível remover este item.");
     setCollection((current) => current.filter((item) => item.id !== id));
   }
   function exploreSet(setName: string) { setCatalogQuery(setName); setActive("catalog"); }
-  return <main className="app-shell"><Header setActive={setActive} /><div className="app-frame"><Sidebar active={active} setActive={setActive} /><div className="page-content">{active === "home" ? <HomeView collection={collection} collectionError={collectionError} setActive={setActive} /> : null}{active === "collection" ? <CollectionView collection={collection} collectionError={collectionError} loading={collectionLoading} removeItem={removeItem} setActive={setActive} /> : null}{active === "catalog" ? <CatalogView addCard={addCard} initialQuery={catalogQuery} /> : null}{active === "scanner" ? <ScannerView addCandidate={(candidate) => addCard(candidate.id)} /> : null}{active === "opportunities" ? <SealedOffersView initialSets={initialSets} onExploreSet={exploreSet} /> : null}</div></div><MobileNav active={active} setActive={setActive} /></main>;
+  return <main className="app-shell"><Header setActive={setActive} /><div className="app-frame"><Sidebar active={active} setActive={setActive} /><div className="page-content">{active === "home" ? <HomeView collection={collection} summary={summary} collectionError={collectionError} setActive={setActive} /> : null}{active === "collection" ? <CollectionView collection={collection} summary={summary} collectionError={collectionError} loading={collectionLoading} removeItem={removeItem} setActive={setActive} /> : null}{active === "catalog" ? <CatalogView addCard={addCard} initialQuery={catalogQuery} /> : null}{active === "scanner" ? <ScannerView addCandidate={(candidate) => addCard(candidate.id)} /> : null}{active === "opportunities" ? <SealedOffersView initialSets={initialSets} onExploreSet={exploreSet} /> : null}</div></div><MobileNav active={active} setActive={setActive} />{selectedCard ? <AddToCollectionDialog card={selectedCard} saving={savingCard} onClose={() => setSelectedCard(null)} onSave={saveCard} /> : null}</main>;
 }
 

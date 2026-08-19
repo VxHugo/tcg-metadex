@@ -1,0 +1,22 @@
+.portfolio-strip { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:14px; margin:0 0 18px; }
+.portfolio-strip .metric-card { min-height:122px; }
+.portfolio-strip .metric-card strong { margin-top:16px; }
+.gain-value { color:var(--green); }
+.loss-value { color:#d92d20; }
+.dialog-backdrop { position:fixed; z-index:40; inset:0; padding:24px; background:rgba(13,22,38,.58); display:grid; place-items:center; overflow:auto; }
+.collection-dialog { width:min(650px,100%); position:relative; background:#fff; border:1px solid var(--line); border-radius:18px; box-shadow:0 28px 90px rgba(13,22,38,.28); padding:28px; }
+.dialog-close { position:absolute; top:14px; right:14px; display:grid; place-items:center; width:36px; height:36px; border:0; border-radius:9px; background:#f3f6fa; color:#667085; }
+.dialog-close:hover { background:#edf2f8; color:#172033; }
+.dialog-card { display:flex; align-items:center; gap:14px; padding:0 38px 21px 0; border-bottom:1px solid var(--line); }
+.dialog-card>img,.dialog-card>.art-placeholder { width:52px; aspect-ratio:.716; object-fit:cover; border-radius:6px; background:#edf1f6; }
+.dialog-card h2 { font:800 21px/1.15 "Manrope",sans-serif; letter-spacing:-.6px; margin:7px 0 4px; }
+.dialog-card p { margin:0; color:var(--muted); font-size:12px; }
+.collection-form { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:15px; padding-top:22px; }
+.collection-form label { display:grid; gap:7px; color:#475467; font-size:11px; font-weight:700; }
+.collection-form input,.collection-form select,.collection-form textarea { width:100%; box-sizing:border-box; border:1px solid #d5dde9; border-radius:8px; color:var(--ink); background:#fff; padding:10px 11px; outline:0; font:500 13px "DM Sans",sans-serif; }
+.collection-form textarea { resize:vertical; }
+.collection-form input:focus,.collection-form select:focus,.collection-form textarea:focus { border-color:#7da0ec; box-shadow:0 0 0 3px #edf4ff; }
+.form-span,.form-note,.dialog-actions { grid-column:1 / -1; }
+.form-note { margin:-4px 0 0; color:var(--muted); font-size:11px; line-height:1.45; }
+.dialog-actions { display:flex; justify-content:flex-end; gap:10px; margin-top:3px; }
+@media(max-width:800px) { .portfolio-strip { grid-template-columns:1fr; gap:10px; }.portfolio-strip .metric-card { min-height:102px; }.collection-dialog { padding:21px 17px; border-radius:14px; }.collection-form { grid-template-columns:1fr; gap:12px; }.dialog-card { padding-right:32px; }.dialog-actions { flex-direction:column-reverse; }.dialog-actions .primary-button,.dialog-actions .secondary-button { width:100%; } }
