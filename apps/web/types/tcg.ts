@@ -21,6 +21,7 @@ export type CardPricing = {
 };
 
 export type CardDetail = CardBrief & {
+  source?: "TCGdex" | "Pokemon TCG API";
   category?: string;
   rarity?: string;
   illustrator?: string;

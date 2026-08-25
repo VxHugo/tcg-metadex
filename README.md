@@ -4,7 +4,7 @@ Plataforma de inteligência financeira e gestão de portfólio para Pokémon TCG
 
 ## Estado atual
 
-- Catálogo de cartas pelo TCGdex.
+- Catálogo de cartas pelo TCGdex, com fallback configurável para a Pokémon TCG API.
 - Market Engine testado: mediana, média, menor preço, confiança, tendência, Deal Score e ROI.
 - Snapshots auditáveis com fonte, URL, data/hora, condição, idioma, variante e grade.
 - A comparação nunca mistura perfis incompatíveis de uma carta.
@@ -49,6 +49,10 @@ curl -X POST http://localhost:3000/api/market/observations \
 O arquivo deve conter `product.id`, `product.name`, `source`, `sourceUrl`, `price`, `condition`, `language`, `variant` e, quando aplicável, `gradeCompany` e `gradeValue`. Todos os valores devem vir da observação real; não envie placeholders ao ambiente em produção.
 
 Consulte o formato, a pesquisa de fontes e as limitações atuais em [docs/market-sources.md](docs/market-sources.md).
+
+## Fontes de catálogo
+
+O TCGdex continua como padrão e oferece dados multilíngues, incluindo português brasileiro. A Pokémon TCG API pode ser selecionada com `CATALOG_PROVIDER=pokemontcg` ou entra como fallback se o TCGdex estiver indisponível; uma `POKEMON_TCG_API_KEY` é opcional, mas amplia o limite de consultas. Esses provedores identificam cartas, sets e imagens. Preços internacionais não são convertidos nem exibidos como preço de mercado brasileiro.
 
 ## Monitor e alertas
 
