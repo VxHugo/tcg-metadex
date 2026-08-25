@@ -9,4 +9,12 @@ describe("cardPriceQuotes", () => {
       { label: "Média", value: 10, currency: "EUR", source: "Cardmarket via TCGdex" },
     ]);
   });
+
+  it("reads TCGplayer market prices when the card comes from the Pokemon TCG API", () => {
+    const quotes = cardPriceQuotes({ id: "pokemon-tcg:base1-58", name: "Pikachu", localId: "58", pricing: { tcgplayer: { prices: { normal: { market: 3.25 }, holofoil: { low: 5 } } } } });
+    expect(quotes).toEqual([
+      { label: "Mercado · Normal", value: 3.25, currency: "USD", source: "TCGplayer via Pokémon TCG API" },
+      { label: "Mercado · Holo", value: 5, currency: "USD", source: "TCGplayer via Pokémon TCG API" },
+    ]);
+  });
 });
