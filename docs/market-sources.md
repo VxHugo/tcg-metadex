@@ -42,3 +42,9 @@ O bloco de cartas usa somente uma tendência positiva observada nos últimos 30 
 Antes de ligar Liga Pokémon ou MYP Cards como provider automático: registrar os termos consultados, a frequência permitida, cache/rate limit e o campo de identificação que preserva condição, idioma, variante e URL original.
 
 Antes de ativar o Mercado Livre em produção: criar e aprovar o aplicativo na plataforma de desenvolvedores, guardar o token somente no servidor, implementar renovação OAuth e observar os limites de consulta permitidos.
+
+## Operação contínua e alertas
+
+O endpoint autenticado `POST /api/market/monitor` é o ponto de execução de um agendador. Ele avalia somente observações já persistidas, deduplica avisos pelo link e preço da oferta, envia oportunidades verificadas para um chat Telegram configurado e registra um snapshot diário do portfólio quando houver cotação comparável.
+
+Uma referência da Liga Pokémon deve chegar por parceria, exportação permitida ou feed autorizado. O MetaDex não inclui automação para burlar Cloudflare, login, CAPTCHA, limites de acesso ou outras proteções da Liga. Resultados de qualquer fornecedor terceirizado devem ser revisados quanto a termos, origem, custo e estabilidade antes de serem conectados à ingestão.

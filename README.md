@@ -10,6 +10,7 @@ Plataforma de inteligência financeira e gestão de portfólio para Pokémon TCG
 - A comparação nunca mistura perfis incompatíveis de uma carta.
 - API de ingestão: `POST /api/market/observations`.
 - API de leitura: `GET /api/market/:productId` com o mesmo perfil da observação.
+- Monitor autenticado: `POST /api/market/monitor` avalia oportunidades já auditadas, envia alertas ao Telegram e registra no máximo um snapshot de portfólio por dia.
 - Migration Prisma e CI para validar banco, lint, tipos, testes e build.
 - Interface sem cartas, preços ou oportunidades de demonstração.
 - Radar de Selados com categorias para packs, booster boxes/displays, blisters, ETBs, boxes de coleção, premium collections, tins e decks. Ele só lista ofertas automáticas após configurar uma fonte autorizada; sem isso, abre a busca ao vivo na fonte, sem números inventados.
@@ -48,6 +49,17 @@ curl -X POST http://localhost:3000/api/market/observations \
 O arquivo deve conter `product.id`, `product.name`, `source`, `sourceUrl`, `price`, `condition`, `language`, `variant` e, quando aplicável, `gradeCompany` e `gradeValue`. Todos os valores devem vir da observação real; não envie placeholders ao ambiente em produção.
 
 Consulte o formato, a pesquisa de fontes e as limitações atuais em [docs/market-sources.md](docs/market-sources.md).
+
+## Monitor e alertas
+
+Depois de configurar fontes autorizadas que alimentem `POST /api/market/observations`, defina `MARKET_JOB_TOKEN`, `TELEGRAM_BOT_TOKEN` e `TELEGRAM_CHAT_ID`. Um agendador externo confiável pode chamar o monitor a cada 15 minutos:
+
+```bash
+curl -X POST http://localhost:3000/api/market/monitor \
+  -H "Authorization: Bearer SEU_MARKET_JOB_TOKEN"
+```
+
+Ele nunca procura ou inventa preços: usa apenas snapshots persistidos e comparáveis. Cada oferta é enviada uma vez por URL e preço; o histórico de portfólio só é salvo quando houver preço atual verificável.
 
 ## Verificação
 
