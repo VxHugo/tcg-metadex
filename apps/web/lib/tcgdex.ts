@@ -95,9 +95,17 @@ export async function searchCards(query: string, limit = 18): Promise<CardBrief[
 
 export async function getCard(id: string): Promise<CardDetail> {
   if (id.startsWith(POKEMON_TCG_PREFIX)) return pokemonCard(id.slice(POKEMON_TCG_PREFIX.length));
-  const response = await fetch(`${BASE_URL}/cards/${encodeURIComponent(id)}`, { next: { revalidate: 300 } });
-  if (!response.ok) throw new Error(`TCGdex card failed (${response.status})`);
-  return { ...(await response.json()) as CardDetail, source: "TCGdex" };
+  try {
+    const response = await fetch(`${BASE_URL}/cards/${encodeURIComponent(id)}`, { next: { revalidate: 300 } });
+    if (!response.ok) throw new Error(`TCGdex card failed (${response.status})`);
+    return { ...(await response.json()) as CardDetail, source: "TCGdex" };
+  } catch (error) {
+    try {
+      return await pokemonCard(id);
+    } catch {
+      throw error;
+    }
+  }
 }
 
 export async function searchSets(query: string, limit = 24): Promise<TcgSetBrief[]> {

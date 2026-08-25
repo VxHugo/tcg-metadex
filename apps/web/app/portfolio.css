@@ -19,4 +19,17 @@
 .form-span,.form-note,.dialog-actions { grid-column:1 / -1; }
 .form-note { margin:-4px 0 0; color:var(--muted); font-size:11px; line-height:1.45; }
 .dialog-actions { display:flex; justify-content:flex-end; gap:10px; margin-top:3px; }
-@media(max-width:800px) { .portfolio-strip { grid-template-columns:1fr; gap:10px; }.portfolio-strip .metric-card { min-height:102px; }.collection-dialog { padding:21px 17px; border-radius:14px; }.collection-form { grid-template-columns:1fr; gap:12px; }.dialog-card { padding-right:32px; }.dialog-actions { flex-direction:column-reverse; }.dialog-actions .primary-button,.dialog-actions .secondary-button { width:100%; } }
+.product-details-button { display:block; width:100%; padding:0; border:0; background:transparent; color:inherit; text-align:left; cursor:pointer; }
+.product-details-button:focus-visible { outline:3px solid #9cb9f5; outline-offset:3px; border-radius:8px; }
+.product-details-button:disabled { cursor:wait; opacity:.72; }
+.card-price-dialog { width:min(590px,100%); }
+.price-source-line { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:20px 0 10px; color:#475467; font-size:12px; font-weight:700; }
+.price-source-line small { color:#8a98ad; font-size:10px; font-weight:600; }
+.card-price-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:9px; }
+.card-price-grid>div { min-height:78px; border:1px solid #dce4ef; border-radius:10px; padding:13px; background:#f9fbfe; display:grid; gap:7px; }
+.card-price-grid span { color:#7b879a; font-size:10px; font-weight:700; letter-spacing:.05em; text-transform:uppercase; }
+.card-price-grid strong { color:#15223a; font:800 18px/1 "Manrope",sans-serif; letter-spacing:-.5px; }
+.card-price-empty { padding:28px 0 16px; }
+.card-price-empty h3 { font:800 18px/1.25 "Manrope",sans-serif; margin:9px 0 8px; }
+.card-price-empty p { max-width:440px; margin:0; color:var(--muted); font-size:12px; line-height:1.5; }
+@media(max-width:800px) { .portfolio-strip { grid-template-columns:1fr; gap:10px; }.portfolio-strip .metric-card { min-height:102px; }.collection-dialog { padding:21px 17px; border-radius:14px; }.collection-form { grid-template-columns:1fr; gap:12px; }.dialog-card { padding-right:32px; }.dialog-actions { flex-direction:column-reverse; }.dialog-actions .primary-button,.dialog-actions .secondary-button { width:100%; }.card-price-grid { grid-template-columns:1fr; }.card-price-grid>div { min-height:67px; } }
