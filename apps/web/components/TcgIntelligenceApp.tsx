@@ -4,6 +4,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type FormEvent, type ReactNode } from "react";
 import { cardImage } from "@/lib/tcgdex";
 import { cardPriceQuotes } from "@/lib/card-prices";
+import type { LigaPokemonQuote } from "@/lib/ligapokemon";
 import { sealedCategories, type SealedCategoryId, type SealedOffersResponse } from "@/lib/sealed-products";
 import { emptyRecommendations, type RecommendationsResponse } from "@/lib/recommendations";
 import type { CardBrief, CardDetail, CollectionEntry, PortfolioSummary, ScanCandidate, TcgSetBrief } from "@/types/tcg";
@@ -130,10 +131,33 @@ function AddToCollectionDialog({ card, saving, onClose, onSave }: { card: CardDe
 }
 
 function CardPriceDialog({ card, onClose, onAdd }: { card: CardDetail; onClose: () => void; onAdd: () => Promise<void> }) {
-  const quotes = cardPriceQuotes(card);
+  const internationalQuotes = cardPriceQuotes(card);
   const [adding, setAdding] = useState(false);
+  const [ligaQuote, setLigaQuote] = useState<LigaPokemonQuote | null>(null);
+
+  useEffect(() => {
+    setLigaQuote(null);
+    function receiveLigaQuote() {
+      const serialized = document.documentElement.dataset.tcgMetadexLigaQuote;
+      if (!serialized) return;
+      try {
+        const imported = JSON.parse(serialized) as LigaPokemonQuote;
+        if (imported.cardName.trim().toLocaleLowerCase("pt-BR") !== card.name.trim().toLocaleLowerCase("pt-BR")) return;
+        if (!Array.isArray(imported.prices)) return;
+        setLigaQuote(imported);
+      } catch {
+        // Ignore malformed messages from browser extensions.
+      }
+    }
+    window.addEventListener("tcg-metadex:liga-import", receiveLigaQuote);
+    return () => window.removeEventListener("tcg-metadex:liga-import", receiveLigaQuote);
+  }, [card.name]);
+
   async function add() { setAdding(true); try { await onAdd(); } finally { setAdding(false); } }
-  return <div className="dialog-backdrop" role="presentation"><section className="collection-dialog card-price-dialog" role="dialog" aria-modal="true" aria-labelledby="card-price-dialog-title"><button className="dialog-close" onClick={onClose} aria-label="Fechar"><Icon name="close" /></button><div className="dialog-card"><CardArtwork image={card.image} name={card.name} /><div><span className="eyebrow">DETALHE E COTAÇÃO</span><h2 id="card-price-dialog-title">{card.name}</h2><p>{card.set?.name ?? "Set não informado"} · #{card.localId}</p></div></div>{quotes.length ? <><div className="price-source-line"><span>{quotes[0].source}</span><small>referência internacional</small></div><div className="card-price-grid">{quotes.map((quote) => <div key={quote.label}><span>{quote.label}</span><strong>{money(quote.value, quote.currency)}</strong></div>)}</div><p className="form-note">Moeda e fonte são preservadas. Esta cotação não é convertida nem exibida como preço brasileiro da Liga.</p></> : <div className="card-price-empty"><span className="eyebrow">SEM COTAÇÃO DISPONÍVEL</span><h3>O catálogo identificou a carta, mas não retornou um preço agora.</h3><p>O valor da sua coleção em reais aparecerá somente quando houver um snapshot brasileiro verificável do mesmo perfil.</p></div>}<div className="dialog-actions"><button type="button" className="secondary-button" onClick={onClose}>Fechar</button><button className="primary-button" onClick={() => void add()} disabled={adding}>{adding ? "Abrindo…" : "Adicionar à coleção"}</button></div></section></div>;
+  const queriedAt = ligaQuote?.observedAt ? new Intl.DateTimeFormat("pt-BR", { dateStyle: "short", timeStyle: "short" }).format(new Date(ligaQuote.observedAt)) : null;
+  const ligaSearchUrl = `https://www.ligapokemon.com.br/?view=cards/card&card=${encodeURIComponent(card.name)}`;
+
+  return <div className="dialog-backdrop" role="presentation"><section className="collection-dialog card-price-dialog" role="dialog" aria-modal="true" aria-labelledby="card-price-dialog-title"><button className="dialog-close" onClick={onClose} aria-label="Fechar"><Icon name="close" /></button><div className="dialog-card"><CardArtwork image={card.image} name={card.name} /><div><span className="eyebrow">DETALHE E COTAÇÃO</span><h2 id="card-price-dialog-title">{card.name}</h2><p>{card.set?.name ?? "Set não informado"} · #{card.localId}</p></div></div>{ligaQuote?.prices.length ? <><div className="price-source-line"><span>Liga Pokémon · preço em BRL</span><small>{queriedAt ? `importado ${queriedAt}` : "importação atual"}</small></div><div className="liga-price-list">{ligaQuote.prices.map((price) => <article key={price.edition}><strong>Edição {price.edition}</strong><div><span>Menor<b>{price.lowest ? money(price.lowest) : "—"}</b></span><span>Média<b>{price.average ? money(price.average) : "—"}</b></span><span>Maior<b>{price.highest ? money(price.highest) : "—"}</b></span></div></article>)}</div><a className="source-link" href={ligaQuote.sourceUrl} target="_blank" rel="noreferrer">Conferir na Liga Pokémon <Icon name="arrow" size={14} /></a><p className="form-note">Se houver mais de uma edição, confirme qual é a sua antes de usar o preço como referência da coleção.</p></> : <div className="card-price-empty"><span className="eyebrow">COTAÇÃO DA LIGA EM BRL</span><h3>Abra a busca e importe a cotação real.</h3><p>A Liga bloqueia consultas feitas pelo servidor. Use a Ponte Liga no navegador para importar somente o preço da página que você abriu.</p><div className="liga-import-actions"><a className="primary-button" href={ligaSearchUrl} target="_blank" rel="noreferrer">Abrir busca na Liga Pokémon <Icon name="arrow" size={15} /></a><span>Na aba aberta, clique na extensão Ponte Liga e importe para este detalhe.</span></div></div>}{internationalQuotes.length ? <><div className="price-source-line international-price-source"><span>{internationalQuotes[0].source}</span><small>referência internacional</small></div><div className="card-price-grid">{internationalQuotes.map((quote) => <div key={quote.label}><span>{quote.label}</span><strong>{money(quote.value, quote.currency)}</strong></div>)}</div><p className="form-note">A referência internacional é mantida separada e não é convertida para BRL.</p></> : null}<div className="dialog-actions"><button type="button" className="secondary-button" onClick={onClose}>Fechar</button><button className="primary-button" onClick={() => void add()} disabled={adding}>{adding ? "Abrindo…" : "Adicionar à coleção"}</button></div></section></div>;
 }
 
 function CollectionView({ collection, summary, collectionError, loading, removeItem, setActive }: { collection: CollectionEntry[]; summary: PortfolioSummary; collectionError: string; loading: boolean; removeItem: (id: string) => Promise<void>; setActive: (view: View) => void }) {

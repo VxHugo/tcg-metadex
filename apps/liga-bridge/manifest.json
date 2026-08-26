@@ -1,0 +1,13 @@
+{
+  "manifest_version": 3,
+  "name": "TCG MetaDex · Ponte Liga",
+  "version": "0.1.0",
+  "description": "Importa para o MetaDex a cotação da página da Liga Pokémon aberta pelo usuário.",
+  "permissions": ["activeTab", "tabs"],
+  "host_permissions": ["https://www.ligapokemon.com.br/*", "http://localhost:3000/*"],
+  "action": { "default_title": "Importar cotação da Liga", "default_popup": "popup.html" },
+  "content_scripts": [
+    { "matches": ["https://www.ligapokemon.com.br/*"], "js": ["liga-page.js"] },
+    { "matches": ["http://localhost:3000/*"], "js": ["metadex-page.js"] }
+  ]
+}
