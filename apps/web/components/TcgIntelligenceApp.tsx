@@ -140,12 +140,6 @@ function CardPriceDialog({ card, onClose, onAdd }: { card: CardDetail; onClose: 
   const [ligaError, setLigaError] = useState("");
 
   useEffect(() => {
-    if (!card.set?.name) {
-      setQuote(null);
-      setLoading(false);
-      setError("card_identity_incomplete");
-      return;
-    }
     const controller = new AbortController();
     setLigaQuote(null);
     setLigaLoading(true);
@@ -179,6 +173,12 @@ function MypCardPriceDialog({ card, onClose, onAdd }: { card: CardDetail; onClos
   const [error, setError] = useState("");
 
   useEffect(() => {
+    if (!card.set?.name) {
+      setQuote(null);
+      setLoading(false);
+      setError("card_identity_incomplete");
+      return;
+    }
     const controller = new AbortController();
     const params = new URLSearchParams({ name: card.name, number: String(card.localId), setName: card.set?.name ?? "", setId: card.set?.id ?? "" });
     setQuote(null);
