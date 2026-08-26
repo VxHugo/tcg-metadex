@@ -41,7 +41,4 @@
 .source-link { display:inline-flex; align-items:center; gap:6px; margin-top:12px; color:#265fb9; font-size:12px; font-weight:800; text-decoration:none; }
 .source-link:hover { text-decoration:underline; }
 .international-price-source { border-top:1px solid #e4e9f1; margin-top:18px; }
-.liga-import-actions { display:grid; gap:10px; margin-top:16px; }
-.liga-import-actions .primary-button { width:max-content; text-decoration:none; }
-.liga-import-actions span { color:var(--muted); font-size:11px; line-height:1.45; }
 @media(max-width:800px) { .portfolio-strip { grid-template-columns:1fr; gap:10px; }.portfolio-strip .metric-card { min-height:102px; }.collection-dialog { padding:21px 17px; border-radius:14px; }.collection-form { grid-template-columns:1fr; gap:12px; }.dialog-card { padding-right:32px; }.dialog-actions { flex-direction:column-reverse; }.dialog-actions .primary-button,.dialog-actions .secondary-button { width:100%; }.card-price-grid { grid-template-columns:1fr; }.card-price-grid>div { min-height:67px; }.liga-price-list article>div { grid-template-columns:1fr; } }

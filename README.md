@@ -54,9 +54,9 @@ Consulte o formato, a pesquisa de fontes e as limitações atuais em [docs/marke
 
 O TCGdex continua como padrão e oferece dados multilíngues, incluindo português brasileiro. A Pokémon TCG API pode ser selecionada com `CATALOG_PROVIDER=pokemontcg` ou entra como fallback se o TCGdex estiver indisponível; uma `POKEMON_TCG_API_KEY` é opcional, mas amplia o limite de consultas. Esses provedores identificam cartas, sets e imagens. Preços internacionais não são convertidos nem exibidos como preço de mercado brasileiro.
 
-## Cotação Liga Pokémon
+## Cotação MYP Cards
 
-A Liga bloqueia consultas feitas diretamente pelo servidor. Para manter a cotação real e verificável sem proxy, login, CAPTCHA ou técnica de evasão, o MetaDex inclui a extensão local `apps/liga-bridge`. No detalhe da carta, abra a busca pública da Liga; na página aberta, a extensão importa os valores mínimo, médio e máximo em BRL por edição de volta para o detalhe do MetaDex. Consulte [as instruções da Ponte Liga](apps/liga-bridge/README.md).
+O detalhe de uma carta consulta a API oficial do MYP Cards somente quando `MYP_CARDS_API_TOKEN` estiver definido no servidor. A resposta é exibida apenas se o nome, o número impresso e a coleção coincidirem; cada cotação preserva o preço mínimo, médio e máximo em BRL, disponibilidade e o link de compra da própria carta. Sem credencial, sem produto ou com uma correspondência ambígua, o site informa a ausência de cotação e não substitui por uma box, acessório ou carta parecida.
 
 ## Monitor e alertas
 

@@ -1,8 +1,11 @@
+import https from "node:https";
+
 export type LigaPokemonPrice = {
   edition: string;
   lowest: number;
   average: number;
   highest: number;
+  sourceUrl?: string;
 };
 
 export type LigaPokemonQuote = {
@@ -16,6 +19,10 @@ type LigaEditionPayload = {
   code?: unknown;
   price?: unknown;
 };
+
+const BASE_URL = "https://www.ligapokemon.com.br/";
+const MINIMUM_INTERVAL_MS = 650;
+let nextRequestAt = 0;
 
 function parseBrazilianMoney(value: unknown): number | null {
   if (typeof value === "number") return Number.isFinite(value) && value >= 0 ? value : null;
@@ -63,4 +70,94 @@ export function parseLigaPokemonEditions(html: string): LigaPokemonPrice[] {
     if (lowest === null && average === null && highest === null) return [];
     return [{ edition: payload.code.trim(), lowest: lowest ?? 0, average: average ?? 0, highest: highest ?? 0 }];
   });
+}
+
+function decodeHtml(value: string) {
+  return value
+    .replace(/<[^>]+>/g, "")
+    .replace(/&nbsp;/gi, " ")
+    .replace(/&amp;/gi, "&")
+    .replace(/&atilde;/gi, "ã")
+    .replace(/&ccedil;/gi, "ç")
+    .replace(/&eacute;/gi, "é")
+    .replace(/&iacute;/gi, "í")
+    .replace(/&oacute;/gi, "ó")
+    .replace(/&uacute;/gi, "ú")
+    .replace(/&([a-z]+);/gi, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function priceFromSection(section: string, className: string) {
+  const match = section.match(new RegExp(`<div\\s+class="${className}">([\\s\\S]*?)<\\/div>`, "i"));
+  return match ? parseBrazilianMoney(decodeHtml(match[1])) : null;
+}
+
+/** Reads the currently rendered Liga search cards. The page stopped exposing cards_editions on search pages in 2026. */
+export function parseLigaPokemonSearchResults(html: string): LigaPokemonPrice[] {
+  const titleMatches = Array.from(html.matchAll(/<div\s+class="mtg-name-prod">[\s\S]*?<a\s+href="([^"]+)"[^>]*>([\s\S]*?)<\/a>/gi));
+  return titleMatches.flatMap((match, index): LigaPokemonPrice[] => {
+    const start = match.index ?? 0;
+    const end = titleMatches[index + 1]?.index ?? html.length;
+    const section = html.slice(start, end);
+    const title = decodeHtml(match[2]);
+    const lowest = priceFromSection(section, "price-min");
+    const average = priceFromSection(section, "price-avg");
+    const highest = priceFromSection(section, "price-max");
+    if (!title || (lowest === null && average === null && highest === null)) return [];
+    return [{
+      edition: title,
+      lowest: lowest ?? 0,
+      average: average ?? 0,
+      highest: highest ?? 0,
+      sourceUrl: new URL(match[1], BASE_URL).toString(),
+    }];
+  });
+}
+
+async function respectRateLimit() {
+  const now = Date.now();
+  const wait = Math.max(0, nextRequestAt - now);
+  nextRequestAt = Math.max(now, nextRequestAt) + MINIMUM_INTERVAL_MS;
+  if (wait) await new Promise((resolve) => setTimeout(resolve, wait));
+}
+
+function getPublicHtml(url: URL): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const request = https.get(url, (response) => {
+      if (response.statusCode !== 200) {
+        response.resume();
+        reject(new Error(`ligapokemon_request_failed_${response.statusCode ?? 0}`));
+        return;
+      }
+      response.setEncoding("utf8");
+      let html = "";
+      response.on("data", (chunk: string) => {
+        html += chunk;
+        if (html.length > 1_500_000) request.destroy(new Error("ligapokemon_response_too_large"));
+      });
+      response.on("end", () => resolve(html));
+    });
+    request.setTimeout(15_000, () => request.destroy(new Error("ligapokemon_timeout")));
+    request.on("error", reject);
+  });
+}
+
+export async function getLigaPokemonQuote(cardName: string): Promise<LigaPokemonQuote> {
+  const trimmedName = cardName.trim();
+  if (!trimmedName || trimmedName.length > 120) throw new Error("invalid_card_name");
+  await respectRateLimit();
+  const url = new URL(BASE_URL);
+  url.searchParams.set("view", "cards/card");
+  url.searchParams.set("card", trimmedName);
+  const html = await getPublicHtml(url);
+  return {
+    cardName: trimmedName,
+    sourceUrl: url.toString(),
+    observedAt: new Date().toISOString(),
+    // The current public search page mixes cards, sealed products and accessories.
+    // Without a verified set/number mapping, returning those rows as a card quote
+    // would mislabel a random product as the selected card.
+    prices: parseLigaPokemonEditions(html),
+  };
 }

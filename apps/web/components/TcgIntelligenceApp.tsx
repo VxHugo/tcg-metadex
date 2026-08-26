@@ -5,6 +5,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, 
 import { cardImage } from "@/lib/tcgdex";
 import { cardPriceQuotes } from "@/lib/card-prices";
 import type { LigaPokemonQuote } from "@/lib/ligapokemon";
+import type { MypCardsQuote } from "@/lib/mypcards";
 import { sealedCategories, type SealedCategoryId, type SealedOffersResponse } from "@/lib/sealed-products";
 import { emptyRecommendations, type RecommendationsResponse } from "@/lib/recommendations";
 import type { CardBrief, CardDetail, CollectionEntry, PortfolioSummary, ScanCandidate, TcgSetBrief } from "@/types/tcg";
@@ -130,34 +131,77 @@ function AddToCollectionDialog({ card, saving, onClose, onSave }: { card: CardDe
   return <div className="dialog-backdrop" role="presentation"><section className="collection-dialog" role="dialog" aria-modal="true" aria-labelledby="collection-dialog-title"><button className="dialog-close" onClick={onClose} disabled={saving} aria-label="Fechar"><Icon name="close" /></button><div className="dialog-card"><CardArtwork image={card.image} name={card.name} /><div><span className="eyebrow">ADICIONAR AO ACERVO</span><h2 id="collection-dialog-title">{card.name}</h2><p>{card.set?.name ?? "Set não informado"} · #{card.localId}</p></div></div><form className="collection-form" onSubmit={(event) => void submit(event)}><label>Quantidade<input type="number" min="1" max="10000" value={quantity} onChange={(event) => setQuantity(Math.max(1, Number(event.target.value) || 1))} /></label><label>Condição<select value={condition} onChange={(event) => setCondition(event.target.value as CollectionEntry["condition"])}><option value="NM">NM · Near Mint</option><option value="LP">LP · Levemente jogada</option><option value="MP">MP · Moderadamente jogada</option><option value="HP">HP · Muito jogada</option><option value="DAMAGED">Danificada</option></select></label><label>Preço pago por unidade (R$)<input type="number" min="0" step="0.01" inputMode="decimal" value={paid} onChange={(event) => setPaid(event.target.value)} placeholder="Opcional" /></label><label>Data da compra<input type="date" value={purchaseDate} onChange={(event) => setPurchaseDate(event.target.value)} /></label><label>Idioma<select value={language} onChange={(event) => setLanguage(event.target.value)}><option value="Português">Português</option><option value="Inglês">Inglês</option><option value="Japonês">Japonês</option><option value="">Não informado</option></select></label><label className="form-span">Anotações<textarea value={notes} onChange={(event) => setNotes(event.target.value)} placeholder="Ex.: comprada em evento, trocada, lote…" rows={2} /></label><p className="form-note">O valor atual só aparecerá quando houver uma cotação verificável do mesmo perfil da carta.</p><div className="dialog-actions"><button type="button" className="secondary-button" onClick={onClose} disabled={saving}>Cancelar</button><button className="primary-button" disabled={saving}>{saving ? "Salvando…" : "Salvar na coleção"}</button></div></form></section></div>;
 }
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars -- the legacy Liga view is kept while its optional connector is still shipped.
 function CardPriceDialog({ card, onClose, onAdd }: { card: CardDetail; onClose: () => void; onAdd: () => Promise<void> }) {
   const internationalQuotes = cardPriceQuotes(card);
   const [adding, setAdding] = useState(false);
   const [ligaQuote, setLigaQuote] = useState<LigaPokemonQuote | null>(null);
+  const [ligaLoading, setLigaLoading] = useState(true);
+  const [ligaError, setLigaError] = useState("");
 
   useEffect(() => {
+    const controller = new AbortController();
     setLigaQuote(null);
-    function receiveLigaQuote() {
-      const serialized = document.documentElement.dataset.tcgMetadexLigaQuote;
-      if (!serialized) return;
-      try {
-        const imported = JSON.parse(serialized) as LigaPokemonQuote;
-        if (imported.cardName.trim().toLocaleLowerCase("pt-BR") !== card.name.trim().toLocaleLowerCase("pt-BR")) return;
-        if (!Array.isArray(imported.prices)) return;
-        setLigaQuote(imported);
-      } catch {
-        // Ignore malformed messages from browser extensions.
-      }
-    }
-    window.addEventListener("tcg-metadex:liga-import", receiveLigaQuote);
-    return () => window.removeEventListener("tcg-metadex:liga-import", receiveLigaQuote);
+    setLigaLoading(true);
+    setLigaError("");
+    fetch(`/api/liga/quote?name=${encodeURIComponent(card.name)}`, { signal: controller.signal })
+      .then(async (response) => {
+        const payload = await response.json() as LigaPokemonQuote & { error?: string };
+        if (!response.ok) throw new Error(payload.error ?? "Não foi possível consultar a Liga Pokémon.");
+        setLigaQuote(payload);
+      })
+      .catch((reason) => {
+        if (!controller.signal.aborted) setLigaError(reason instanceof Error ? reason.message : "Não foi possível consultar a Liga Pokémon.");
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setLigaLoading(false);
+      });
+    return () => controller.abort();
   }, [card.name]);
 
   async function add() { setAdding(true); try { await onAdd(); } finally { setAdding(false); } }
   const queriedAt = ligaQuote?.observedAt ? new Intl.DateTimeFormat("pt-BR", { dateStyle: "short", timeStyle: "short" }).format(new Date(ligaQuote.observedAt)) : null;
-  const ligaSearchUrl = `https://www.ligapokemon.com.br/?view=cards/card&card=${encodeURIComponent(card.name)}`;
 
-  return <div className="dialog-backdrop" role="presentation"><section className="collection-dialog card-price-dialog" role="dialog" aria-modal="true" aria-labelledby="card-price-dialog-title"><button className="dialog-close" onClick={onClose} aria-label="Fechar"><Icon name="close" /></button><div className="dialog-card"><CardArtwork image={card.image} name={card.name} /><div><span className="eyebrow">DETALHE E COTAÇÃO</span><h2 id="card-price-dialog-title">{card.name}</h2><p>{card.set?.name ?? "Set não informado"} · #{card.localId}</p></div></div>{ligaQuote?.prices.length ? <><div className="price-source-line"><span>Liga Pokémon · preço em BRL</span><small>{queriedAt ? `importado ${queriedAt}` : "importação atual"}</small></div><div className="liga-price-list">{ligaQuote.prices.map((price) => <article key={price.edition}><strong>Edição {price.edition}</strong><div><span>Menor<b>{price.lowest ? money(price.lowest) : "—"}</b></span><span>Média<b>{price.average ? money(price.average) : "—"}</b></span><span>Maior<b>{price.highest ? money(price.highest) : "—"}</b></span></div></article>)}</div><a className="source-link" href={ligaQuote.sourceUrl} target="_blank" rel="noreferrer">Conferir na Liga Pokémon <Icon name="arrow" size={14} /></a><p className="form-note">Se houver mais de uma edição, confirme qual é a sua antes de usar o preço como referência da coleção.</p></> : <div className="card-price-empty"><span className="eyebrow">COTAÇÃO DA LIGA EM BRL</span><h3>Abra a busca e importe a cotação real.</h3><p>A Liga bloqueia consultas feitas pelo servidor. Use a Ponte Liga no navegador para importar somente o preço da página que você abriu.</p><div className="liga-import-actions"><a className="primary-button" href={ligaSearchUrl} target="_blank" rel="noreferrer">Abrir busca na Liga Pokémon <Icon name="arrow" size={15} /></a><span>Na aba aberta, clique na extensão Ponte Liga e importe para este detalhe.</span></div></div>}{internationalQuotes.length ? <><div className="price-source-line international-price-source"><span>{internationalQuotes[0].source}</span><small>referência internacional</small></div><div className="card-price-grid">{internationalQuotes.map((quote) => <div key={quote.label}><span>{quote.label}</span><strong>{money(quote.value, quote.currency)}</strong></div>)}</div><p className="form-note">A referência internacional é mantida separada e não é convertida para BRL.</p></> : null}<div className="dialog-actions"><button type="button" className="secondary-button" onClick={onClose}>Fechar</button><button className="primary-button" onClick={() => void add()} disabled={adding}>{adding ? "Abrindo…" : "Adicionar à coleção"}</button></div></section></div>;
+  return <div className="dialog-backdrop" role="presentation"><section className="collection-dialog card-price-dialog" role="dialog" aria-modal="true" aria-labelledby="card-price-dialog-title"><button className="dialog-close" onClick={onClose} aria-label="Fechar"><Icon name="close" /></button><div className="dialog-card"><CardArtwork image={card.image} name={card.name} /><div><span className="eyebrow">DETALHE E COTAÇÃO</span><h2 id="card-price-dialog-title">{card.name}</h2><p>{card.set?.name ?? "Set não informado"} · #{card.localId}</p></div></div>{ligaLoading ? <div className="card-price-empty"><span className="eyebrow">COTAÇÃO DA LIGA EM BRL</span><h3>Consultando a Liga Pokémon…</h3><p>Buscando agora as cotações públicas para {card.name}.</p></div> : ligaQuote?.prices.length ? <><div className="price-source-line"><span>Liga Pokémon · preço em BRL</span><small>{queriedAt ? `consultado ${queriedAt}` : "consulta atual"}</small></div><div className="liga-price-list">{ligaQuote.prices.map((price) => <article key={`${price.edition}-${price.sourceUrl ?? ""}`}><strong>{price.edition}</strong><div><span>Menor<b>{price.lowest ? money(price.lowest) : "—"}</b></span><span>Média<b>{price.average ? money(price.average) : "—"}</b></span><span>Maior<b>{price.highest ? money(price.highest) : "—"}</b></span></div>{price.sourceUrl ? <a className="source-link" href={price.sourceUrl} target="_blank" rel="noreferrer">Ver anúncio exato <Icon name="arrow" size={14} /></a> : null}</article>)}</div><a className="source-link" href={ligaQuote.sourceUrl} target="_blank" rel="noreferrer">Ver busca na Liga Pokémon <Icon name="arrow" size={14} /></a><p className="form-note">Cada linha vem da Liga com seu título e link. Confira título, edição e condição antes de registrar como valor da sua coleção.</p></> : <div className="card-price-empty"><span className="eyebrow">SEM COTAÇÃO DA LIGA</span><h3>{ligaError ? "A consulta da Liga falhou agora." : "A Liga não retornou uma cotação para essa busca."}</h3><p>{ligaError ? "Tente de novo em alguns instantes. O MetaDex não substitui uma falha por preço inventado." : "A carta pode não ter anúncio ativo ou usar outro nome na Liga."}</p></div>}{internationalQuotes.length ? <><div className="price-source-line international-price-source"><span>{internationalQuotes[0].source}</span><small>referência internacional</small></div><div className="card-price-grid">{internationalQuotes.map((quote) => <div key={quote.label}><span>{quote.label}</span><strong>{money(quote.value, quote.currency)}</strong></div>)}</div><p className="form-note">A referência internacional é mantida separada e não é convertida para BRL.</p></> : null}<div className="dialog-actions"><button type="button" className="secondary-button" onClick={onClose}>Fechar</button><button className="primary-button" onClick={() => void add()} disabled={adding}>{adding ? "Abrindo…" : "Adicionar à coleção"}</button></div></section></div>;
+}
+
+function MypCardPriceDialog({ card, onClose, onAdd }: { card: CardDetail; onClose: () => void; onAdd: () => Promise<void> }) {
+  const internationalQuotes = cardPriceQuotes(card);
+  const [adding, setAdding] = useState(false);
+  const [quote, setQuote] = useState<MypCardsQuote | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    const controller = new AbortController();
+    const params = new URLSearchParams({ name: card.name, number: String(card.localId), setName: card.set?.name ?? "", setId: card.set?.id ?? "" });
+    setQuote(null);
+    setLoading(true);
+    setError("");
+    fetch(`/api/myp/quote?${params}`, { signal: controller.signal })
+      .then(async (response) => {
+        const payload = await response.json() as MypCardsQuote & { error?: string };
+        if (!response.ok) throw new Error(payload.error ?? "Não foi possível consultar o MYP Cards.");
+        setQuote(payload);
+      })
+      .catch((reason) => {
+        if (!controller.signal.aborted) setError(reason instanceof Error ? reason.message : "Não foi possível consultar o MYP Cards.");
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setLoading(false);
+      });
+    return () => controller.abort();
+  }, [card.id, card.localId, card.name, card.set?.id, card.set?.name]);
+
+  async function add() { setAdding(true); try { await onAdd(); } finally { setAdding(false); } }
+  const queriedAt = quote?.observedAt ? new Intl.DateTimeFormat("pt-BR", { dateStyle: "short", timeStyle: "short" }).format(new Date(quote.observedAt)) : null;
+  const errorTitle = error === "mypcards_not_configured"
+    ? "A chave da API do MYP Cards ainda não foi configurada."
+    : error === "mypcards_unauthorized"
+      ? "A API do MYP Cards recusou a credencial configurada."
+      : "A consulta do MYP Cards falhou agora.";
+
+  return <div className="dialog-backdrop" role="presentation"><section className="collection-dialog card-price-dialog" role="dialog" aria-modal="true" aria-labelledby="card-price-dialog-title"><button className="dialog-close" onClick={onClose} aria-label="Fechar"><Icon name="close" /></button><div className="dialog-card"><CardArtwork image={card.image} name={card.name} /><div><span className="eyebrow">DETALHE E COTAÇÃO</span><h2 id="card-price-dialog-title">{card.name}</h2><p>{card.set?.name ?? "Set não informado"} · #{card.localId}</p></div></div>{loading ? <div className="card-price-empty"><span className="eyebrow">COTAÇÃO MYP CARDS EM BRL</span><h3>Validando a carta exata…</h3><p>Conferindo nome, coleção e número antes de mostrar o preço.</p></div> : quote?.prices.length ? <><div className="price-source-line"><span>MYP Cards · preço em BRL</span><small>{queriedAt ? `consultado ${queriedAt}` : "consulta atual"}</small></div><div className="liga-price-list">{quote.prices.map((price) => <article key={`${price.internalCode}-${price.sourceUrl}`}><strong>{price.edition}{price.cardCode ? ` · ${price.cardCode}` : ""}</strong><div><span>Menor<b>{price.lowest === null ? "—" : money(price.lowest)}</b></span><span>Média<b>{price.average === null ? "—" : money(price.average)}</b></span><span>Maior<b>{price.highest === null ? "—" : money(price.highest)}</b></span></div>{price.availableQuantity !== null ? <p className="form-note">{price.availableQuantity} unidade(s) disponível(is)</p> : null}<a className="source-link" href={price.sourceUrl} target="_blank" rel="noreferrer">Comprar esta carta no MYP <Icon name="arrow" size={14} /></a></article>)}</div><p className="form-note">Só aparecem resultados com o mesmo nome, número impresso e coleção da carta aberta.</p></> : <div className="card-price-empty"><span className="eyebrow">SEM COTAÇÃO EXATA NO MYP</span><h3>{error ? errorTitle : "Nenhuma correspondência exata foi encontrada."}</h3><p>{error ? "O MetaDex não troca esta falha por um produto parecido." : "Um produto de outra coleção ou com nome parecido não é exibido como preço desta carta."}</p></div>}{internationalQuotes.length ? <><div className="price-source-line international-price-source"><span>{internationalQuotes[0].source}</span><small>referência internacional</small></div><div className="card-price-grid">{internationalQuotes.map((item) => <div key={item.label}><span>{item.label}</span><strong>{money(item.value, item.currency)}</strong></div>)}</div><p className="form-note">A referência internacional é mantida separada e não é convertida para BRL.</p></> : null}<div className="dialog-actions"><button type="button" className="secondary-button" onClick={onClose}>Fechar</button><button className="primary-button" onClick={() => void add()} disabled={adding}>{adding ? "Abrindo…" : "Adicionar à coleção"}</button></div></section></div>;
 }
 
 function CollectionView({ collection, summary, collectionError, loading, removeItem, setActive }: { collection: CollectionEntry[]; summary: PortfolioSummary; collectionError: string; loading: boolean; removeItem: (id: string) => Promise<void>; setActive: (view: View) => void }) {
@@ -187,10 +231,26 @@ function CatalogView({ addCard, initialQuery }: { addCard: (cardId: string) => P
   function search(event?: FormEvent) { event?.preventDefault(); return fetchCatalog(query); }
   useEffect(() => { setQuery(initialQuery); void fetchCatalog(initialQuery); }, [fetchCatalog, initialQuery]);
   async function add(id: string) { setSelected(id); setError(""); try { await addCard(id); } catch (reason) { setError(reason instanceof Error ? reason.message : "Erro ao adicionar carta"); } finally { setSelected(null); } }
-  async function inspect(card: CardBrief) { setDetailLoading(card.id); setError(""); try { const response = await fetch(`/api/card/${encodeURIComponent(card.id)}`); const payload = await response.json(); if (!response.ok || !payload.card) throw new Error(payload.error ?? "Não foi possível consultar os detalhes da carta."); setDetail(payload.card as CardDetail); } catch { setDetail({ ...card, source: "TCGdex" }); } finally { setDetailLoading(null); } }
+  async function inspect(card: CardBrief) {
+    const controller = new AbortController();
+    const timeout = window.setTimeout(() => controller.abort(), 9_000);
+    setDetailLoading(card.id);
+    setError("");
+    try {
+      const response = await fetch(`/api/card/${encodeURIComponent(card.id)}`, { signal: controller.signal });
+      const payload = await response.json();
+      if (!response.ok || !payload.card) throw new Error(payload.error ?? "Não foi possível consultar os detalhes da carta.");
+      setDetail(payload.card as CardDetail);
+    } catch {
+      setDetail({ ...card, source: "TCGdex" });
+    } finally {
+      window.clearTimeout(timeout);
+      setDetailLoading(null);
+    }
+  }
   return <>
     <section className="catalog-hero"><span className="eyebrow">CATÁLOGO TCGDEX</span><h1>Encontre a carta <em>certa.</em></h1><p>Pesquise por nome, número ou coleção e adicione ao seu acervo quando quiser.</p><form onSubmit={search} className="catalog-search"><Icon name="search" size={21} /><label className="visually-hidden" htmlFor="catalog-search">Buscar carta no catálogo</label><input id="catalog-search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Ex.: Pikachu, Charizard ou 025" /><button type="submit" disabled={loading}>{loading ? "Buscando..." : "Buscar"}</button></form><div className="search-suggestions"><span>Buscas populares</span>{["Pikachu", "Charizard", "Mewtwo", "Gardevoir"].map((term) => <button key={term} type="button" onClick={() => { setQuery(term); void fetchCatalog(term); }}>{term}</button>)}</div></section>
-    <section className="catalog-layout"><aside className="filter-rail"><div className="filter-heading"><h2>Filtros</h2><button>Limpar</button></div><FilterGroup title="Coleção" values={["Todas as coleções", "Scarlet & Violet", "Crown Zenith"]} /><FilterGroup title="Raridade" values={["Qualquer raridade", "Rare", "Illustration Rare"]} /><FilterGroup title="Tipo" values={["Todos os tipos", "Elétrico", "Fogo", "Água"]} /></aside><div className="catalog-results"><div className="result-toolbar"><span>{loading ? "Buscando cartas..." : `${cards.length} resultados para “${query}”`}</span><button className="filter-mobile"><Icon name="sliders" size={16} />Filtros</button><button className="sort-button">Mais relevantes <Icon name="chevron" size={15} /></button></div>{error ? <div className="notice notice-warning">{error}</div> : null}<div className="catalog-grid">{cards.map((card) => <article className="product-card" key={card.id}><button className="wishlist-button" aria-label={`Adicionar ${card.name} à wishlist`}><Icon name="heart" size={17} /></button><button className="product-details-button" onClick={() => void inspect(card)} disabled={detailLoading === card.id} aria-label={`Ver detalhes e cotações de ${card.name}`}><CardArtwork image={card.image} name={card.name} /><div className="product-copy"><span>#{card.localId}</span><h3>{card.name}</h3><p>{detailLoading === card.id ? "Consultando cotação…" : "Ver detalhes e cotação"}</p></div></button><button className="add-button" onClick={() => void add(card.id)} disabled={selected === card.id}>{selected === card.id ? "Adicionando..." : <><Icon name="plus" size={15} />Coleção</>}</button></article>)}</div>{!loading && !cards.length && !error ? <div className="large-empty"><span className="empty-icon"><Icon name="search" size={28} /></span><h2>Nenhuma carta encontrada</h2><p>Tente pesquisar pelo nome em inglês, número ou outro set.</p></div> : null}</div></section>{detail ? <CardPriceDialog card={detail} onClose={() => setDetail(null)} onAdd={async () => { await add(detail.id); setDetail(null); }} /> : null}
+    <section className="catalog-layout"><aside className="filter-rail"><div className="filter-heading"><h2>Filtros</h2><button>Limpar</button></div><FilterGroup title="Coleção" values={["Todas as coleções", "Scarlet & Violet", "Crown Zenith"]} /><FilterGroup title="Raridade" values={["Qualquer raridade", "Rare", "Illustration Rare"]} /><FilterGroup title="Tipo" values={["Todos os tipos", "Elétrico", "Fogo", "Água"]} /></aside><div className="catalog-results"><div className="result-toolbar"><span>{loading ? "Buscando cartas..." : `${cards.length} resultados para “${query}”`}</span><button className="filter-mobile"><Icon name="sliders" size={16} />Filtros</button><button className="sort-button">Mais relevantes <Icon name="chevron" size={15} /></button></div>{error ? <div className="notice notice-warning">{error}</div> : null}<div className="catalog-grid">{cards.map((card) => <article className="product-card" key={card.id}><button className="wishlist-button" aria-label={`Adicionar ${card.name} à wishlist`}><Icon name="heart" size={17} /></button><button className="product-details-button" onClick={() => void inspect(card)} disabled={detailLoading === card.id} aria-label={`Ver detalhes e cotações de ${card.name}`}><CardArtwork image={card.image} name={card.name} /><div className="product-copy"><span>#{card.localId}</span><h3>{card.name}</h3><p>{detailLoading === card.id ? "Consultando cotação…" : "Ver detalhes e cotação"}</p></div></button><button className="add-button" onClick={() => void add(card.id)} disabled={selected === card.id}>{selected === card.id ? "Adicionando..." : <><Icon name="plus" size={15} />Coleção</>}</button></article>)}</div>{!loading && !cards.length && !error ? <div className="large-empty"><span className="empty-icon"><Icon name="search" size={28} /></span><h2>Nenhuma carta encontrada</h2><p>Tente pesquisar pelo nome em inglês, número ou outro set.</p></div> : null}</div></section>{detail ? <MypCardPriceDialog card={detail} onClose={() => setDetail(null)} onAdd={async () => { await add(detail.id); setDetail(null); }} /> : null}
   </>;
 }
 
