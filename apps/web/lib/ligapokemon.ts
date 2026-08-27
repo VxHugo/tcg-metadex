@@ -15,6 +15,13 @@ export type LigaPokemonQuote = {
   prices: LigaPokemonPrice[];
 };
 
+export type LigaPokemonCardIdentity = {
+  name: string;
+  number: string | number;
+  setCode: string;
+  total?: string | number;
+};
+
 type LigaEditionPayload = {
   code?: unknown;
   price?: unknown;
@@ -27,11 +34,14 @@ let nextRequestAt = 0;
 function parseBrazilianMoney(value: unknown): number | null {
   if (typeof value === "number") return Number.isFinite(value) && value >= 0 ? value : null;
   if (typeof value !== "string") return null;
-  const normalized = value
+  const cleaned = value
     .replace(/R\$/gi, "")
-    .replace(/\s/g, "")
-    .replace(/\./g, "")
-    .replace(",", ".");
+    .replace(/\s/g, "");
+  // The Liga JSON uses a dot decimal separator ("25.00"), while visible BRL
+  // markup uses a comma decimal separator ("1.234,00").
+  const normalized = cleaned.includes(",")
+    ? cleaned.replace(/\./g, "").replace(",", ".")
+    : cleaned;
   const parsed = Number(normalized);
   return Number.isFinite(parsed) && parsed >= 0 ? parsed : null;
 }
@@ -143,13 +153,24 @@ function getPublicHtml(url: URL): Promise<string> {
   });
 }
 
-export async function getLigaPokemonQuote(cardName: string): Promise<LigaPokemonQuote> {
-  const trimmedName = cardName.trim();
-  if (!trimmedName || trimmedName.length > 120) throw new Error("invalid_card_name");
-  await respectRateLimit();
+export function ligaPokemonCardUrl(card: LigaPokemonCardIdentity) {
+  const name = card.name.trim();
+  const number = String(card.number).trim();
+  const setCode = card.setCode.trim();
+  const total = card.total === undefined ? "" : String(card.total).trim();
+  if (!name || !number || !setCode || name.length > 120 || number.length > 40 || setCode.length > 30) throw new Error("invalid_card_identity");
   const url = new URL(BASE_URL);
   url.searchParams.set("view", "cards/card");
-  url.searchParams.set("card", trimmedName);
+  url.searchParams.set("card", total ? `${name} (${number}/${total})` : `${name} (${number})`);
+  url.searchParams.set("ed", setCode);
+  url.searchParams.set("num", number);
+  return url;
+}
+
+export async function getLigaPokemonQuote(card: LigaPokemonCardIdentity): Promise<LigaPokemonQuote> {
+  const trimmedName = card.name.trim();
+  const url = ligaPokemonCardUrl(card);
+  await respectRateLimit();
   const html = await getPublicHtml(url);
   return {
     cardName: trimmedName,

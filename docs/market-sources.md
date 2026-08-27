@@ -11,7 +11,7 @@ O MetaDex só armazena e exibe uma observação quando ela tem fonte, URL, preç
 - **Pokémon TCG API**: fonte pública padrão do catálogo, com referências TCGplayer em USD e Cardmarket em EUR por carta/edição. Os valores são identificados como internacionais e não são convertidos em BRL. [Documentação](https://docs.pokemontcg.io/api-reference/cards/card-object/)
 - **TCGdex**: provedor alternativo de catálogo. A API é adequada para identificar cartas, mas não é a referência de preço brasileira. [TCGdex](https://github.com/tcgdex)
 - **MYP Cards**: a documentação oficial publica endpoints de catálogo e preço em BRL. O conector usa `GET /pokemon/carta/{nome}` com a credencial de servidor `X-Api-Token` fornecida pelo MYP e só aceita nome, número impresso e edição compatíveis. [Documentação da API](https://mypcards.github.io/mypcards-api/), [MYP Cards](https://mypcards.com/)
-- **Liga Pokémon**: permanece uma referência importante para comparação brasileira, mas nenhuma API pública foi confirmada nesta etapa. Não haverá scraping agressivo, contorno de bloqueio ou integração declarada como pronta sem dados verificáveis.
+- **Liga Pokémon**: fonte da cotação brasileira do detalhe de carta. O conector abre somente a URL direta da carta, formada por nome, número e código de edição, e lê os valores mínimo/médio/máximo em BRL retornados nessa página. Há intervalo mínimo por processo, timeout e nenhuma automação para burlar login, CAPTCHA, Cloudflare ou limites de acesso. Se a URL não confirmar a impressão exata, não há cotação exibida.
 - **Mercado Livre**: a documentação oficial mantém os recursos de busca/listagens e os campos de preço atual e original no item. O Radar de Selados usa exclusivamente a API oficial quando `MELI_ACCESS_TOKEN` de um aplicativo autorizado estiver configurado. Sem token, o produto não tenta contornar o bloqueio nem faz scraping: oferece apenas links de busca direta por categoria. [Busca de itens](https://developers.mercadolivre.com.br/pt_br/itens-e-buscas), [preços de produtos](https://developers.mercadolivre.com.br/devcenter/api-de-precos), [termos](https://developers.mercadolivre.com.br/pt_br/termos-e-condicoes).
 
 ## Produtos selados
@@ -40,7 +40,7 @@ O bloco de cartas usa somente uma tendência positiva observada nos últimos 30 
 
 ## Próximo conector externo
 
-Antes de ligar Liga Pokémon como provider automático: registrar os termos consultados, a frequência permitida, cache/rate limit e o campo de identificação que preserva condição, idioma, variante e URL original. Para o MYP, solicitar e manter o token de API somente no servidor; o conector de consulta pontual já valida a identidade completa da carta e preserva o link do produto.
+Antes de executar consultas em lote na Liga Pokémon: registrar os termos consultados, a frequência permitida, cache/rate limit e o campo de identificação que preserva condição, idioma, variante e URL original. A integração atual é uma consulta pontual da carta aberta pelo usuário. Para o MYP, solicitar e manter o token de API somente no servidor; o conector de consulta pontual já valida a identidade completa da carta e preserva o link do produto.
 
 Antes de ativar o Mercado Livre em produção: criar e aprovar o aplicativo na plataforma de desenvolvedores, guardar o token somente no servidor, implementar renovação OAuth e observar os limites de consulta permitidos.
 

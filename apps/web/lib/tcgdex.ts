@@ -11,7 +11,7 @@ type PokemonTcgApiCard = {
   rarity?: string;
   artist?: string;
   images?: { small?: string; large?: string };
-  set?: { id: string; name: string; images?: { logo?: string; symbol?: string }; printedTotal?: number; total?: number };
+  set?: { id: string; name: string; ptcgoCode?: string; images?: { logo?: string; symbol?: string }; printedTotal?: number; total?: number };
   tcgplayer?: Record<string, unknown>;
   cardmarket?: {
     updatedAt?: string;
@@ -57,6 +57,7 @@ export function mapPokemonCard(card: PokemonTcgApiCard): CardDetail {
     set: card.set ? {
       id: card.set.id,
       name: card.set.name,
+      code: card.set.ptcgoCode,
       logo: card.set.images?.logo,
       symbol: card.set.images?.symbol,
       cardCount: { official: card.set.printedTotal, total: card.set.total },

@@ -54,9 +54,11 @@ Consulte o formato, a pesquisa de fontes e as limitações atuais em [docs/marke
 
 A Pokémon TCG API é o padrão do catálogo e fornece identificação de carta, coleção, número, imagens e referências públicas do TCGplayer/Cardmarket. Não precisa de chave para o uso normal; uma `POKEMON_TCG_API_KEY` opcional amplia o limite. O MetaDex mostra esses preços com fonte e moeda originais, sem convertê-los ou chamá-los de cotação brasileira. O TCGdex continua disponível definindo `CATALOG_PROVIDER=tcgdex`.
 
-## Cotação MYP Cards
+## Cotação brasileira — Liga Pokémon
 
-O detalhe usa a cotação pública internacional imediatamente. Quando `MYP_CARDS_API_TOKEN` estiver definido no servidor, também consulta a API oficial do MYP Cards e só exibe uma cotação brasileira se nome, número impresso e coleção coincidirem. Sem credencial, a interface continua exibindo a fonte pública em vez de mostrar uma falha ou trocar a carta por box, acessório ou produto parecido.
+Ao abrir a carta, o MetaDex monta a URL direta da Liga Pokémon com nome, número impresso, total da coleção e código da edição. Só então mostra menor, média e maior preço em BRL, com o link da própria carta para conferência. A consulta é pontual, com intervalo mínimo e sem login, proxy ou qualquer técnica de evasão. Quando a edição não possuir um código compatível ou não houver anúncio, o produto informa a ausência de cotação brasileira e não usa uma box, acessório ou carta homônima como substituto.
+
+As referências TCGplayer/Cardmarket continuam abaixo, separadas e identificadas como internacionais. O MYP Cards permanece um conector opcional autenticado para uma futura fonte adicional em BRL.
 
 ## Monitor e alertas
 

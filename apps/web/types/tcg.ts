@@ -28,6 +28,7 @@ export type CardDetail = CardBrief & {
   set?: {
     id: string;
     name: string;
+    code?: string;
     logo?: string;
     symbol?: string;
     cardCount?: { official?: number; total?: number };
