@@ -21,12 +21,14 @@ export type CardPricing = {
 };
 
 export type CardDetail = CardBrief & {
+  source?: "TCGdex" | "Pokemon TCG API";
   category?: string;
   rarity?: string;
   illustrator?: string;
   set?: {
     id: string;
     name: string;
+    code?: string;
     logo?: string;
     symbol?: string;
     cardCount?: { official?: number; total?: number };
@@ -60,8 +62,21 @@ export type CollectionEntry = {
   quantity: number;
   paid: number | null;
   market: number | null;
-  condition: "NM" | "LP" | "MP" | "HP";
+  profitLoss: number | null;
+  condition: "NM" | "LP" | "MP" | "HP" | "DAMAGED";
+  purchaseDate: string | null;
   addedAt: string;
+};
+
+export type PortfolioSummary = {
+  totalCards: number;
+  invested: number;
+  currentValue: number;
+  profitLoss: number | null;
+  roiPercent: number | null;
+  costedPositions: number;
+  quotedPositions: number;
+  comparablePositions: number;
 };
 
 export type Opportunity = {

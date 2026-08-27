@@ -186,6 +186,17 @@ model Alert {
   @@index([userId, active])
 }
 
+model NotificationDelivery {
+  id               String   @id @default(cuid())
+  channel          String
+  deduplicationKey String
+  payload          Json
+  sentAt           DateTime @default(now())
+
+  @@unique([channel, deduplicationKey])
+  @@index([sentAt])
+}
+
 model ScanSession {
   id           String      @id @default(cuid())
   userId       String
