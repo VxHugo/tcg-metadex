@@ -50,13 +50,13 @@ O arquivo deve conter `product.id`, `product.name`, `source`, `sourceUrl`, `pric
 
 Consulte o formato, a pesquisa de fontes e as limitações atuais em [docs/market-sources.md](docs/market-sources.md).
 
-## Fontes de catálogo
+## Fontes de catálogo e preço público
 
-O TCGdex continua como padrão e oferece dados multilíngues, incluindo português brasileiro. A Pokémon TCG API pode ser selecionada com `CATALOG_PROVIDER=pokemontcg` ou entra como fallback se o TCGdex estiver indisponível; uma `POKEMON_TCG_API_KEY` é opcional, mas amplia o limite de consultas. Esses provedores identificam cartas, sets e imagens. Preços internacionais não são convertidos nem exibidos como preço de mercado brasileiro.
+A Pokémon TCG API é o padrão do catálogo e fornece identificação de carta, coleção, número, imagens e referências públicas do TCGplayer/Cardmarket. Não precisa de chave para o uso normal; uma `POKEMON_TCG_API_KEY` opcional amplia o limite. O MetaDex mostra esses preços com fonte e moeda originais, sem convertê-los ou chamá-los de cotação brasileira. O TCGdex continua disponível definindo `CATALOG_PROVIDER=tcgdex`.
 
 ## Cotação MYP Cards
 
-O detalhe de uma carta consulta a API oficial do MYP Cards somente quando `MYP_CARDS_API_TOKEN` estiver definido no servidor. A resposta é exibida apenas se o nome, o número impresso e a coleção coincidirem; cada cotação preserva o preço mínimo, médio e máximo em BRL, disponibilidade e o link de compra da própria carta. Sem credencial, sem produto ou com uma correspondência ambígua, o site informa a ausência de cotação e não substitui por uma box, acessório ou carta parecida.
+O detalhe usa a cotação pública internacional imediatamente. Quando `MYP_CARDS_API_TOKEN` estiver definido no servidor, também consulta a API oficial do MYP Cards e só exibe uma cotação brasileira se nome, número impresso e coleção coincidirem. Sem credencial, a interface continua exibindo a fonte pública em vez de mostrar uma falha ou trocar a carta por box, acessório ou produto parecido.
 
 ## Monitor e alertas
 

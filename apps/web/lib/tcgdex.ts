@@ -13,6 +13,17 @@ type PokemonTcgApiCard = {
   images?: { small?: string; large?: string };
   set?: { id: string; name: string; images?: { logo?: string; symbol?: string }; printedTotal?: number; total?: number };
   tcgplayer?: Record<string, unknown>;
+  cardmarket?: {
+    updatedAt?: string;
+    prices?: {
+      trendPrice?: number;
+      averageSellPrice?: number;
+      lowPrice?: number;
+      avg1?: number;
+      avg7?: number;
+      avg30?: number;
+    };
+  };
   updatedAt?: string;
 };
 
@@ -27,7 +38,7 @@ export function cardImage(image?: string, quality: "low" | "high" = "high") {
 }
 
 function catalogProvider() {
-  return process.env.CATALOG_PROVIDER === "pokemontcg" ? "pokemontcg" : "tcgdex";
+  return process.env.CATALOG_PROVIDER === "tcgdex" ? "tcgdex" : "pokemontcg";
 }
 
 function pokemonHeaders() {
@@ -35,6 +46,7 @@ function pokemonHeaders() {
 }
 
 export function mapPokemonCard(card: PokemonTcgApiCard): CardDetail {
+  const cardmarket = card.cardmarket?.prices;
   return {
     id: `${POKEMON_TCG_PREFIX}${card.id}`,
     localId: card.number,
@@ -49,7 +61,21 @@ export function mapPokemonCard(card: PokemonTcgApiCard): CardDetail {
       symbol: card.set.images?.symbol,
       cardCount: { official: card.set.printedTotal, total: card.set.total },
     } : undefined,
-    pricing: card.tcgplayer ? { tcgplayer: card.tcgplayer } : undefined,
+    pricing: card.tcgplayer || cardmarket ? {
+      ...(card.tcgplayer ? { tcgplayer: card.tcgplayer } : {}),
+      ...(cardmarket ? {
+        cardmarket: {
+          updated: card.cardmarket?.updatedAt,
+          unit: "EUR",
+          trend: cardmarket.trendPrice,
+          avg: cardmarket.averageSellPrice,
+          low: cardmarket.lowPrice,
+          avg1: cardmarket.avg1,
+          avg7: cardmarket.avg7,
+          avg30: cardmarket.avg30,
+        },
+      } : {}),
+    } : undefined,
     updated: card.updatedAt,
     source: "Pokemon TCG API",
   };

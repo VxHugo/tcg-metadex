@@ -45,5 +45,5 @@ export function cardPriceQuotes(card: CardDetail): CardPriceQuote[] {
     const amount = number(value);
     return amount === null ? [] : [{ label, value: amount, currency, source: "Cardmarket via TCGdex" }];
   });
-  return cardmarketQuotes.length ? cardmarketQuotes : tcgplayerQuotes(card);
+  return cardmarketQuotes.length ? cardmarketQuotes.map((quote) => ({ ...quote, source: "Cardmarket via Pokémon TCG API" })) : tcgplayerQuotes(card);
 }

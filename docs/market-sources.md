@@ -8,7 +8,8 @@ O MetaDex só armazena e exibe uma observação quando ela tem fonte, URL, preç
 
 ## Fontes pesquisadas
 
-- **TCGdex**: fonte de catálogo usada pelo produto. A API é adequada para identificar cartas, mas não é a referência de preço brasileira. [TCGdex](https://github.com/tcgdex)
+- **Pokémon TCG API**: fonte pública padrão do catálogo, com referências TCGplayer em USD e Cardmarket em EUR por carta/edição. Os valores são identificados como internacionais e não são convertidos em BRL. [Documentação](https://docs.pokemontcg.io/api-reference/cards/card-object/)
+- **TCGdex**: provedor alternativo de catálogo. A API é adequada para identificar cartas, mas não é a referência de preço brasileira. [TCGdex](https://github.com/tcgdex)
 - **MYP Cards**: a documentação oficial publica endpoints de catálogo e preço em BRL. O conector usa `GET /pokemon/carta/{nome}` com a credencial de servidor `X-Api-Token` fornecida pelo MYP e só aceita nome, número impresso e edição compatíveis. [Documentação da API](https://mypcards.github.io/mypcards-api/), [MYP Cards](https://mypcards.com/)
 - **Liga Pokémon**: permanece uma referência importante para comparação brasileira, mas nenhuma API pública foi confirmada nesta etapa. Não haverá scraping agressivo, contorno de bloqueio ou integração declarada como pronta sem dados verificáveis.
 - **Mercado Livre**: a documentação oficial mantém os recursos de busca/listagens e os campos de preço atual e original no item. O Radar de Selados usa exclusivamente a API oficial quando `MELI_ACCESS_TOKEN` de um aplicativo autorizado estiver configurado. Sem token, o produto não tenta contornar o bloqueio nem faz scraping: oferece apenas links de busca direta por categoria. [Busca de itens](https://developers.mercadolivre.com.br/pt_br/itens-e-buscas), [preços de produtos](https://developers.mercadolivre.com.br/devcenter/api-de-precos), [termos](https://developers.mercadolivre.com.br/pt_br/termos-e-condicoes).
